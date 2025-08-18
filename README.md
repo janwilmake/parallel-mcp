@@ -10,6 +10,9 @@ When MCP supports async tools and notifications to re-activate a chat with new i
 
 Create an MCP worker that:
 
-1. create a task with callback and instantly return Result URL
-2. receive callback and query result, then set result into KV
-3. make KV accessible at that URL
+1. Create a task with callback and instantly return Result URL
+2. Receive callback and query result, then set result into KV
+3. Make KV accessible at that URL. Maybe also a MD version that's more readable and doesn't include reasoning, just confidence in emoji.
+4. The second tool is just requesting the result URL, but this could be made optional
+
+🚫 Parallel should have mcp-compliant oauth first.
