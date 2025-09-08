@@ -74,12 +74,17 @@ For SSE, proxy the current stream from the DO, but keep it alive even if it's in
 
 Context:
 
-https://flaredream.com/system-ts.md
-https://docs.parallel.ai/task-api/features/group-api.md
-https://docs.parallel.ai/api-reference/task-api-beta/create-task-group.md
-https://docs.parallel.ai/api-reference/task-api-beta/add-runs-to-task-group.md
-https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs.md
-https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-events.md
-https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group.md
-https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group-run.md
-https://docs.parallel.ai/task-api/features/ingest-api.md
+- https://flaredream.com/system-ts.md
+- https://docs.parallel.ai/task-api/features/group-api.md
+- https://docs.parallel.ai/api-reference/task-api-beta/create-task-group.md
+- https://docs.parallel.ai/api-reference/task-api-beta/add-runs-to-task-group.md
+- https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs.md
+- https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-events.md
+- https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group.md
+- https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group-run.md
+- https://docs.parallel.ai/api-reference/task-api-v1/retrieve-task-run-result.md
+- https://docs.parallel.ai/task-api/features/ingest-api.md
+
+Bonus:
+
+- The task run ID is 32 hex characters (https://letmeprompt.com/rules-httpsuithu-28mr600, https://letmeprompt.com/rules-httpsuithu-uq2vhc0) save to make publicly accessible assuming it's generated at random.
