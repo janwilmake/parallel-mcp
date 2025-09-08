@@ -15,4 +15,9 @@ Create an MCP worker that:
 3. Make KV accessible at that URL. Maybe also a MD version that's more readable and doesn't include reasoning, just confidence in emoji.
 4. The second tool is just requesting the result URL, but this could be made optional
 
-🚫 Parallel should have mcp-compliant oauth first.
+# Parallel mcp-compliant oauth provider
+
+- github-oauth-provider (infer from x-oauth-provider)
+- parallel-oauth-provider (similar but add ability to select or add api key)
+
+This is literally 2 prompts!
