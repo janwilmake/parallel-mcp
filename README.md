@@ -1,5 +1,7 @@
 # Parallel Tasks MCP
 
+![](simplify.drawio.png)
+
 The task group API of Parallel is quite a lot to take in. With the Parallel Tasks MCP, the goal is to make the Task Group API as accessible as possible through:
 
 1. a simplified 'multitask api'
