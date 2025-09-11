@@ -1,7 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 import { DurableObject } from "cloudflare:workers";
 import { Queryable, studioMiddleware } from "queryable-object";
+import { parallelOauthProvider } from "parallel-oauth-provider";
 export interface Env {
+  OAUTH_KV: KVNamespace;
   ADMIN_SECRET: string;
   TASK_GROUP_DO: DurableObjectNamespace<TaskGroupDO>;
 }
@@ -24,6 +26,8 @@ export default {
     ctx: ExecutionContext
   ): Promise<Response> {
     const url = new URL(request.url);
+    const oauthResponse = await parallelOauthProvider(request, env.OAUTH_KV);
+    if (oauthResponse) return oauthResponse;
 
     // Handle root path - serve HTML interface
     if (url.pathname === "/" && request.method === "GET") {

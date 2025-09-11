@@ -22,6 +22,9 @@
   "security": [
     {
       "ApiKeyAuth": []
+    },
+    {
+      "BearerAuth": []
     }
   ],
   "paths": {
@@ -508,6 +511,11 @@
         "in": "header",
         "name": "x-api-key",
         "description": "Parallel.ai API key"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Bearer token authentication"
       },
       "BasicAuth": {
         "type": "http",

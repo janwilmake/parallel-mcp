@@ -3,6 +3,7 @@
     "@cloudflare/workers-types": "^4.20250911.0"
   },
   "dependencies": {
+    "parallel-oauth-provider": "^0.0.3",
     "queryable-object": "^0.0.19"
   }
 }

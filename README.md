@@ -16,7 +16,8 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 
 - ✅ initial implementation
 - ✅ make mcp work via https://github.com/janwilmake/openapi-to-mcp
-- add oauth using simplerauth returning parallel-api-key
+- make demo without oauth
+- add oauth using `simplerauth` returning `parallel-api-key`
 - improve MCP (see [MCP.md](MCP.md))
 
 QOL
