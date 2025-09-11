@@ -1,6 +1,10 @@
 {
   "openapi": "3.0.3",
   "info": {
+    "x-mcp": {
+      "protocolVersion": "2025-03-26",
+      "toolOperationIds": ["createMultitask"]
+    },
     "title": "Parallel.ai Multitask API",
     "description": "Batch process tasks at scale using Parallel.ai",
     "version": "1.0.0",
@@ -41,27 +45,7 @@
         "tags": ["Interface"]
       }
     },
-    "/tools/list": {
-      "get": {
-        "operationId": "tools/list",
-        "description": "List tools for MCP",
-        "responses": {
-          "200": {
-            "description": "A list of operationIds that can be used as MCP tools",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
+
     "/v1beta/tasks/multitask": {
       "post": {
         "summary": "Create Multitask Group",
@@ -72,7 +56,69 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TaskGroupInput"
+                "type": "object",
+                "required": ["inputs", "output_type"],
+                "properties": {
+                  "inputs": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL that returns a JSON array of input objects"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object"
+                        },
+                        "description": "Array of input objects"
+                      }
+                    ],
+                    "example": [
+                      {
+                        "company_name": "Apple",
+                        "website": "https://apple.com"
+                      },
+                      {
+                        "company_name": "Microsoft",
+                        "website": "https://microsoft.com"
+                      }
+                    ]
+                  },
+                  "output_type": {
+                    "type": "string",
+                    "enum": ["text", "json"],
+                    "description": "Type of output expected from tasks"
+                  },
+                  "output_description": {
+                    "type": "string",
+                    "description": "Description of the desired output format or content",
+                    "example": "Extract company information including CEO, industry, and revenue"
+                  },
+                  "output_schema": {
+                    "type": "object",
+                    "description": "JSON schema for structured output (only used when output_type is 'json')",
+                    "example": {
+                      "type": "object",
+                      "properties": {
+                        "company_name": { "type": "string" },
+                        "ceo": { "type": "string" },
+                        "industry": { "type": "string" }
+                      }
+                    }
+                  },
+                  "processor": {
+                    "type": "string",
+                    "enum": ["lite", "base", "core", "pro", "ultra"],
+                    "description": "Parallel.ai processor to use. If not specified, will be auto-suggested based on task requirements"
+                  },
+                  "webhook_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL to POST to when all tasks are completed",
+                    "example": "https://example.com/webhook"
+                  }
+                }
               },
               "examples": {
                 "json_with_schema": {
@@ -470,68 +516,6 @@
       }
     },
     "schemas": {
-      "TaskGroupInput": {
-        "type": "object",
-        "required": ["inputs", "output_type"],
-        "properties": {
-          "inputs": {
-            "oneOf": [
-              {
-                "type": "string",
-                "format": "uri",
-                "description": "URL that returns a JSON array of input objects"
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "object"
-                },
-                "description": "Array of input objects"
-              }
-            ],
-            "example": [
-              { "company_name": "Apple", "website": "https://apple.com" },
-              {
-                "company_name": "Microsoft",
-                "website": "https://microsoft.com"
-              }
-            ]
-          },
-          "output_type": {
-            "type": "string",
-            "enum": ["text", "json"],
-            "description": "Type of output expected from tasks"
-          },
-          "output_description": {
-            "type": "string",
-            "description": "Description of the desired output format or content",
-            "example": "Extract company information including CEO, industry, and revenue"
-          },
-          "output_schema": {
-            "type": "object",
-            "description": "JSON schema for structured output (only used when output_type is 'json')",
-            "example": {
-              "type": "object",
-              "properties": {
-                "company_name": { "type": "string" },
-                "ceo": { "type": "string" },
-                "industry": { "type": "string" }
-              }
-            }
-          },
-          "processor": {
-            "type": "string",
-            "enum": ["lite", "base", "core", "pro", "ultra"],
-            "description": "Parallel.ai processor to use. If not specified, will be auto-suggested based on task requirements"
-          },
-          "webhook_url": {
-            "type": "string",
-            "format": "uri",
-            "description": "URL to POST to when all tasks are completed",
-            "example": "https://example.com/webhook"
-          }
-        }
-      },
       "TaskGroupResults": {
         "type": "object",
         "properties": {

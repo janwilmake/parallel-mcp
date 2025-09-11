@@ -32,13 +32,6 @@ export default {
       });
     }
 
-    if (url.pathname === "/tools/list" && request.method === "GET") {
-      // Needed for https://github.com/janwilmake/openapi-to-mcp
-      return new Response(JSON.stringify(["createMultitask"]), {
-        headers: { "content-type": "application/json" },
-      });
-    }
-
     // Handle multitask creation
     if (
       url.pathname === "/v1beta/tasks/multitask" &&
