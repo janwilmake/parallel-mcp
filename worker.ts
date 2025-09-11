@@ -1,7 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { DurableObject } from "cloudflare:workers";
 import { Queryable, studioMiddleware } from "queryable-object";
-
 export interface Env {
   ADMIN_SECRET: string;
   TASK_GROUP_DO: DurableObjectNamespace<TaskGroupDO>;

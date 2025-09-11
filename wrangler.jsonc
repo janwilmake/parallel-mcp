@@ -8,6 +8,8 @@
   "durable_objects": {
     "bindings": [{ "name": "TASK_GROUP_DO", "class_name": "TaskGroupDO" }]
   },
-  "routes": [{ "custom_domain": true, "pattern": "multitask.jan.parallel.ai" }],
+  "routes": [
+    { "custom_domain": true, "pattern": "multitask-demo.parallel.ai" }
+  ],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TaskGroupDO"] }]
 }

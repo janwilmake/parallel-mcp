@@ -1,0 +1,739 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Parallel.ai Multitask API",
+    "description": "Batch process tasks at scale using Parallel.ai",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Parallel.ai",
+      "url": "https://parallel.ai"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://multitask-demo.parallel.ai",
+      "description": "Multitask Demo Server"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Get HTML Interface",
+        "description": "Serves the HTML interface for creating task groups",
+        "operationId": "getIndexHTML",
+        "responses": {
+          "200": {
+            "description": "HTML interface",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Interface"]
+      }
+    },
+    "/v1beta/tasks/multitask": {
+      "post": {
+        "summary": "Create Multitask Group",
+        "description": "Creates a new task group for batch processing",
+        "operationId": "createMultitask",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskGroupInput"
+              },
+              "examples": {
+                "json_with_schema": {
+                  "summary": "JSON output with custom schema",
+                  "value": {
+                    "inputs": [
+                      {
+                        "company_name": "Apple",
+                        "company_website": "https://apple.com"
+                      },
+                      {
+                        "company_name": "Microsoft",
+                        "company_website": "https://microsoft.com"
+                      }
+                    ],
+                    "output_type": "json",
+                    "output_schema": {
+                      "type": "object",
+                      "properties": {
+                        "company_name": { "type": "string" },
+                        "ceo": { "type": "string" },
+                        "industry": { "type": "string" }
+                      }
+                    },
+                    "processor": "core",
+                    "webhook_url": "https://example.com/webhook"
+                  }
+                },
+                "text_output": {
+                  "summary": "Text output with description",
+                  "value": {
+                    "inputs": [
+                      { "text": "Analyze this customer feedback" },
+                      { "text": "Review this product description" }
+                    ],
+                    "output_type": "text",
+                    "output_description": "Provide a sentiment analysis summary"
+                  }
+                },
+                "url_inputs": {
+                  "summary": "Inputs from URL",
+                  "value": {
+                    "inputs": "https://example.com/data.json",
+                    "output_type": "json",
+                    "output_description": "Extract key information from each item"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task group created successfully",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "https://multitask-demo.parallel.ai/tgrp_abc123"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Missing required fields: inputs, output_type"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Missing x-api-key header"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "callbacks": {
+          "taskGroupComplete": {
+            "{$request.body#/webhook_url}": {
+              "post": {
+                "summary": "Task Group Completion Webhook",
+                "description": "Called when all tasks in the group are completed",
+                "requestBody": {
+                  "required": true,
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/WebhookPayload"
+                      }
+                    }
+                  }
+                },
+                "responses": {
+                  "200": {
+                    "description": "Webhook received successfully"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Tasks"]
+      }
+    },
+    "/{taskGroupId}": {
+      "get": {
+        "summary": "Get Task Group Results",
+        "description": "Retrieves task group results in various formats",
+        "operationId": "getTaskGroupResults",
+        "parameters": [
+          {
+            "name": "taskGroupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Task group identifier"
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/json",
+                "text/html",
+                "text/markdown",
+                "text/event-stream"
+              ]
+            },
+            "description": "Response format preference"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task group results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskGroupResults"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task group not found"
+          }
+        },
+        "tags": ["Results"]
+      }
+    },
+    "/{taskGroupId}.json": {
+      "get": {
+        "summary": "Get Task Group Results as JSON",
+        "operationId": "getTaskGroupResultsJSON",
+        "parameters": [
+          {
+            "name": "taskGroupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task group results in JSON format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskGroupResults"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Results"]
+      }
+    },
+    "/{taskGroupId}.html": {
+      "get": {
+        "summary": "Get Task Group Results as HTML",
+        "operationId": "getTaskGroupResultsHTML",
+        "parameters": [
+          {
+            "name": "taskGroupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task group results in HTML format",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Results"]
+      }
+    },
+    "/{taskGroupId}.md": {
+      "get": {
+        "summary": "Get Task Group Results as Markdown",
+        "operationId": "getTaskGroupResultsMarkdown",
+        "parameters": [
+          {
+            "name": "taskGroupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task group results in Markdown format",
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Results"]
+      }
+    },
+    "/{taskGroupId}.sse": {
+      "get": {
+        "summary": "Stream Task Group Results",
+        "description": "Real-time streaming of task group updates using Server-Sent Events",
+        "operationId": "streamTaskGroupResults",
+        "parameters": [
+          {
+            "name": "taskGroupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server-sent events stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "examples": {
+                  "initial": {
+                    "summary": "Initial data event",
+                    "value": "data: {\"type\":\"initial\",\"data\":{\"id\":\"tgrp_abc123\",\"status\":{\"is_active\":true},\"results\":[]}}\n\n"
+                  },
+                  "run_update": {
+                    "summary": "Run update event",
+                    "value": "data: {\"type\":\"run_update\",\"run\":{\"run_id\":\"trun_xyz789\",\"status\":\"completed\"},\"result\":{\"$id\":\"trun_xyz789\",\"status\":\"completed\"}}\n\n"
+                  },
+                  "complete": {
+                    "summary": "Completion event",
+                    "value": "data: {\"type\":\"complete\"}\n\n"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-cache"
+              },
+              "Connection": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "keep-alive"
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "*"
+              }
+            }
+          }
+        },
+        "tags": ["Results"]
+      }
+    },
+    "/{taskGroupId}.db": {
+      "get": {
+        "summary": "Access Database Studio",
+        "description": "Access the queryable database studio for task group data",
+        "operationId": "accessDatabaseStudio",
+        "parameters": [
+          {
+            "name": "taskGroupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Database studio interface",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        },
+        "tags": ["Database"]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Parallel.ai API key"
+      },
+      "BasicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Basic authentication for database studio access"
+      }
+    },
+    "schemas": {
+      "TaskGroupInput": {
+        "type": "object",
+        "required": ["inputs", "output_type"],
+        "properties": {
+          "inputs": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "description": "URL that returns a JSON array of input objects"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                },
+                "description": "Array of input objects"
+              }
+            ],
+            "example": [
+              { "company_name": "Apple", "website": "https://apple.com" },
+              {
+                "company_name": "Microsoft",
+                "website": "https://microsoft.com"
+              }
+            ]
+          },
+          "output_type": {
+            "type": "string",
+            "enum": ["text", "json"],
+            "description": "Type of output expected from tasks"
+          },
+          "output_description": {
+            "type": "string",
+            "description": "Description of the desired output format or content",
+            "example": "Extract company information including CEO, industry, and revenue"
+          },
+          "output_schema": {
+            "type": "object",
+            "description": "JSON schema for structured output (only used when output_type is 'json')",
+            "example": {
+              "type": "object",
+              "properties": {
+                "company_name": { "type": "string" },
+                "ceo": { "type": "string" },
+                "industry": { "type": "string" }
+              }
+            }
+          },
+          "processor": {
+            "type": "string",
+            "enum": ["lite", "base", "core", "pro", "ultra"],
+            "description": "Parallel.ai processor to use. If not specified, will be auto-suggested based on task requirements"
+          },
+          "webhook_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to POST to when all tasks are completed",
+            "example": "https://example.com/webhook"
+          }
+        }
+      },
+      "TaskGroupResults": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Task group identifier"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Task group metadata"
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "num_task_runs": {
+                "type": "integer",
+                "description": "Total number of task runs"
+              },
+              "task_run_status_counts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "description": "Count of runs by status"
+              },
+              "is_active": {
+                "type": "boolean",
+                "description": "Whether the task group is still processing"
+              },
+              "status_message": {
+                "type": "string"
+              },
+              "modified_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "output_schema": {
+            "type": "object",
+            "nullable": true,
+            "description": "Output schema used for the tasks"
+          },
+          "results": {
+            "type": "array",
+            "description": "Flat array of results with merged input and output data",
+            "items": {
+              "$ref": "#/components/schemas/TaskResult"
+            }
+          },
+          "runs": {
+            "type": "array",
+            "description": "Detailed run information",
+            "items": {
+              "$ref": "#/components/schemas/TaskRun"
+            }
+          }
+        }
+      },
+      "TaskResult": {
+        "type": "object",
+        "description": "Flattened result combining input data and output content",
+        "properties": {
+          "$id": {
+            "type": "string",
+            "description": "Task run identifier"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "action_required",
+              "running",
+              "completed",
+              "failed",
+              "cancelling",
+              "cancelled"
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "$id": "trun_abc123",
+          "status": "completed",
+          "company_name": "Apple",
+          "website": "https://apple.com",
+          "ceo": "Tim Cook",
+          "industry": "Technology"
+        }
+      },
+      "TaskRun": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "Task run identifier"
+          },
+          "input_index": {
+            "type": "integer",
+            "description": "Index of the input in the original inputs array"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "action_required",
+              "running",
+              "completed",
+              "failed",
+              "cancelling",
+              "cancelled"
+            ]
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "Whether the run is currently active"
+          },
+          "processor": {
+            "type": "string",
+            "description": "Processor used for this run"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "input": {
+            "type": "object",
+            "description": "Input data for this run"
+          },
+          "output": {
+            "type": "object",
+            "description": "Output from the task run",
+            "properties": {
+              "content": {
+                "oneOf": [{ "type": "string" }, { "type": "object" }],
+                "description": "The actual output content"
+              }
+            }
+          },
+          "output_basis": {
+            "type": "object",
+            "description": "Basis information for the output"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "description": "Error information if the run failed"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata for the run"
+          }
+        }
+      },
+      "WebhookPayload": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to access the completed task group results",
+            "example": "https://multitask-demo.parallel.ai/tgrp_abc123"
+          }
+        }
+      },
+      "SSEEvent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["initial", "run_update", "complete"],
+            "description": "Type of server-sent event"
+          },
+          "data": {
+            "type": "object",
+            "description": "Event payload (for initial event)"
+          },
+          "run": {
+            "type": "object",
+            "description": "Updated run data (for run_update event)"
+          },
+          "result": {
+            "type": "object",
+            "description": "Updated result data (for run_update event)"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Interface",
+      "description": "HTML interface operations"
+    },
+    {
+      "name": "Tasks",
+      "description": "Task group creation and management"
+    },
+    {
+      "name": "Results",
+      "description": "Task group results retrieval in various formats"
+    },
+    {
+      "name": "Database",
+      "description": "Database studio access"
+    }
+  ]
+}
