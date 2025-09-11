@@ -1,0 +1,1 @@
+The task run ID is 32 hex characters (https://letmeprompt.com/rules-httpsuithu-28mr600, https://letmeprompt.com/rules-httpsuithu-uq2vhc0) save to make publicly accessible assuming it's generated at random.
