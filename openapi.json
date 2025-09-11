@@ -41,6 +41,27 @@
         "tags": ["Interface"]
       }
     },
+    "/tools/list": {
+      "get": {
+        "operationId": "tools/list",
+        "description": "List tools for MCP",
+        "responses": {
+          "200": {
+            "description": "A list of tools",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1beta/tasks/multitask": {
       "post": {
         "summary": "Create Multitask Group",

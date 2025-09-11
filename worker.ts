@@ -32,6 +32,10 @@ export default {
       });
     }
 
+    if (url.pathname === "/tools/list") {
+      return new Response(JSON.stringify({ tools: ["createMultitask"] }));
+    }
+
     // Handle multitask creation
     if (
       url.pathname === "/v1beta/tasks/multitask" &&
