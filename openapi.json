@@ -3,7 +3,8 @@
   "info": {
     "x-mcp": {
       "protocolVersion": "2025-03-26",
-      "toolOperationIds": ["createMultitask"]
+      "toolOperationIds": ["createMultitask"],
+      "authEndpoint": "/me"
     },
     "title": "Parallel.ai Multitask API",
     "description": "Batch process tasks at scale using Parallel.ai",

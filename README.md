@@ -10,21 +10,31 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 - OpenAPI JSON: https://multitask-demo.parallel.ai/openapi.json
 - Design SPEC (outdated): https://multitask-demo.parallel.ai/SPEC.md
 - Demo: https://multitask-demo.parallel.ai
-- MCP: https://mcp.openapisearch.com/multitask-demo.parallel.ai/mcp
+- MCP: https://mcp.openapisearch.com/multitask-demo.parallel.ai/mcp or https://multitask-demo.parallel.ai/mcp
 
 ## TODO
 
 - ✅ initial implementation
 - ✅ make mcp work via https://github.com/janwilmake/openapi-to-mcp
-- make demo without oauth
 - add oauth using `simplerauth` returning `parallel-api-key`
-- improve MCP (see [MCP.md](MCP.md))
+
+OAuth
+
+- Ensure kv doesn't create eventual consistency problems. If so, switch to DO.
+- It may be easier to host this at `mcp-oauth.parallel.ai` and use in conjunction with `simplerauth-client`. This way, it's just a matter of switching the oauthHost to `mcp-oauth.parallel.ai`, and can then be used from any worker.
+- Get it to work with mcp.agent-friendly.com (now having problem with cache)
+- Get it to work with `npx @modelcontextprotocol/inspector`
 
 QOL
 
 - improve HTML and streaming behavior to be fully realtime
 - make HTML mobile-friendly
-- add ability to see in the title whether the task result is still loading or not
+- add ability to see in the title whether the task result is still loading or not (Good DX)
 - add confidence and references into HTML
 - show confidence as emoji in markdown
 - figure out how to make it loose no functionality that doesn't increase complexity: https://letmeprompt.com/rules-httpsuithu-jza7uv0
+
+MCP
+
+- Initial goal is to get it to work using [withMcp](https://github.com/janwilmake/with-mcp) with oauth.
+- improve MCP (see [MCP.md](MCP.md))

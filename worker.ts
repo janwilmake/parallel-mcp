@@ -2,6 +2,9 @@
 import { DurableObject } from "cloudflare:workers";
 import { Queryable, studioMiddleware } from "queryable-object";
 import { parallelOauthProvider } from "parallel-oauth-provider";
+import { withMcp } from "with-mcp";
+//@ts-ignore
+import openapi from "./openapi.json";
 export interface Env {
   OAUTH_KV: KVNamespace;
   ADMIN_SECRET: string;
@@ -19,55 +22,57 @@ interface TaskGroupInput {
   output_schema?: any;
 }
 
-export default {
-  async fetch(
-    request: Request,
-    env: Env,
-    ctx: ExecutionContext
-  ): Promise<Response> {
-    const url = new URL(request.url);
-    const oauthResponse = await parallelOauthProvider(request, env.OAUTH_KV);
-    if (oauthResponse) return oauthResponse;
+const fetchHandler = async (
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext
+): Promise<Response> => {
+  const url = new URL(request.url);
+  const oauthResponse = await parallelOauthProvider(request, env.OAUTH_KV);
+  if (oauthResponse) return oauthResponse;
 
-    // Handle root path - serve HTML interface
-    if (url.pathname === "/" && request.method === "GET") {
-      return new Response(await getIndexHTML(), {
-        headers: { "content-type": "text/html" },
+  // Handle root path - serve HTML interface
+  if (url.pathname === "/" && request.method === "GET") {
+    return new Response(await getIndexHTML(), {
+      headers: { "content-type": "text/html" },
+    });
+  }
+
+  // Handle multitask creation
+  if (url.pathname === "/v1beta/tasks/multitask" && request.method === "POST") {
+    return handleMultitask(request, env);
+  }
+
+  // Handle task group results
+  const pathMatch = url.pathname.match(
+    /^\/([a-zA-Z0-9_-]+)(?:\.(json|md|html|sse|db))?$/
+  );
+  if (pathMatch) {
+    const taskGroupId = pathMatch[1];
+    const format =
+      pathMatch[2] || getFormatFromAccept(request.headers.get("accept"));
+
+    const stub = env.TASK_GROUP_DO.get(
+      env.TASK_GROUP_DO.idFromName(taskGroupId)
+    );
+
+    if (format === "db") {
+      return studioMiddleware(request, stub.raw, {
+        basicAuth: { username: "admin", password: env.ADMIN_SECRET },
       });
     }
 
-    // Handle multitask creation
-    if (
-      url.pathname === "/v1beta/tasks/multitask" &&
-      request.method === "POST"
-    ) {
-      return handleMultitask(request, env);
-    }
+    return stub.fetch(request);
+  }
 
-    // Handle task group results
-    const pathMatch = url.pathname.match(
-      /^\/([a-zA-Z0-9_-]+)(?:\.(json|md|html|sse|db))?$/
-    );
-    if (pathMatch) {
-      const taskGroupId = pathMatch[1];
-      const format =
-        pathMatch[2] || getFormatFromAccept(request.headers.get("accept"));
+  return new Response("Not Found", { status: 404 });
+};
 
-      const stub = env.TASK_GROUP_DO.get(
-        env.TASK_GROUP_DO.idFromName(taskGroupId)
-      );
-
-      if (format === "db") {
-        return studioMiddleware(request, stub.raw, {
-          basicAuth: { username: "admin", password: env.ADMIN_SECRET },
-        });
-      }
-
-      return stub.fetch(request);
-    }
-
-    return new Response("Not Found", { status: 404 });
-  },
+export default {
+  fetch: withMcp(fetchHandler, openapi, {
+    authEndpoint: "/me",
+    toolOperationIds: ["createMultitask"],
+  }),
 } satisfies ExportedHandler<Env>;
 
 async function handleMultitask(request: Request, env: Env): Promise<Response> {
