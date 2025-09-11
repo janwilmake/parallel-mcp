@@ -1,6 +1,6 @@
-Desired URL structure:
+Make me a cloudflare worker that creates the task group and inserts all inputs, then streams the results to a durable object unique to that task run.
 
-`POST /v1beta/tasks/groups`
+# `POST /v1beta/tasks/multitask`
 
 Desired input:
 
@@ -28,18 +28,40 @@ type TaskGroupInput = {
 };
 ```
 
-Desired output:
+Required header: x-api-key (the parallel api key) (no env parallel api key is needed)
 
-```ts
-type TaskGroupOutput = {
-  /** URL at origin with pathname equal to the task run ID */
-  url: string;
-};
-```
+Process:
 
-`GET /{trun_id}[.(json|md|html|sse)]` - publicly shows (intermediate) result in accepted format. format can be made explicit using optional extension, but otherwise follows accept header.
+- creates the group (see https://docs.parallel.ai/task-api/features/group-api.md and https://docs.parallel.ai/api-reference/task-api-beta/create-task-group.md )
+- if needed, uses ingest apis https://docs.parallel.ai/task-api/features/ingest-api.md
+- adds all task runs https://docs.parallel.ai/api-reference/task-api-beta/add-runs-to-task-group.md
+- creates DO with task group ID as ID, sets all details we have about it including all runs
 
-Make me a cloudflare worker to be hosted at https://tasks-mcp-demo.parallel.ai that creates the task group and inserts all inputs, then streams the results to a durable object unique to that task run.
+Desired output: string (URL at origin with pathname equal to the task group ID)
+
+# TaskGroupDO
+
+After creation, should keep continuous streams running to retrieve results of task group and all runs and keep the DB up to date and the output stream.
+
+It should also provide queryable support so we can use the studio
+
+An RPC function `getData` to get current data.
+
+A request/response function (fetch) to connect to the output stream.
+
+Context:
+
+- https://flaredream.com/system-ts.md
+- https://uithub.com/janwilmake/queryable-object/blob/main/README.md
+- https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-events.md
+- https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs.md
+- https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group.md
+- https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group-run.md
+- https://docs.parallel.ai/api-reference/task-api-v1/retrieve-task-run-result.md
+
+# `GET /{trun_id}[.(json|md|html|sse|db)]`
+
+- publicly shows (intermediate) result in accepted format. format can be made explicit using optional extension, but otherwise follows accept header.
 
 Stream pointers:
 
@@ -62,25 +84,26 @@ type TaskGroupResultOutput = {
     modified_at: string;
   };
   created_at: string;
+  // make sure the inputs (array of objects) submitted to the original post request are augmenting the output.content when data is retrieved (in json, html, and md)? it is important we know the trun_id matching each input. in the end, results should be: {$id, $status, ...inputs, ...output.content} so it's flat.
   results: object[];
+
+  runs: object[];
 };
 ```
 
-For MD, parse it into a more readable format that doesn't include reasoning or sources, and has just the data in a table with confidence in color-emoji.
+For MD, parse it into a more readable format that doesn't include reasoning or sources, and has just the data in a table with confidence in color-emoji. just the results with statuses is important
 
-For HTML, inject JSON as application/json script into `resultHtml` which is hardcoded (Render a simple table from it)
+For HTML, inject JSON as application/json script into `resultHtml` which is hardcoded (the html should render the content array as a table (needs each property to be a column, and show status as initial column) and keep the .sse stream open to rerender updated rows.)
 
 For SSE, proxy the current stream from the DO, but keep it alive even if it's interrupted (retry immediately and keep output stream going)
 
-Context:
+For .db, use `studioMiddleware` without authentication (`dangerouslyDisableAuth: true` in config)
 
-- https://flaredream.com/system-ts.md
-- https://docs.parallel.ai/task-api/features/group-api.md
-- https://docs.parallel.ai/api-reference/task-api-beta/create-task-group.md
-- https://docs.parallel.ai/api-reference/task-api-beta/add-runs-to-task-group.md
-- https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs.md
-- https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-events.md
-- https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group.md
-- https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group-run.md
-- https://docs.parallel.ai/api-reference/task-api-v1/retrieve-task-run-result.md
-- https://docs.parallel.ai/task-api/features/ingest-api.md
+The task group gets created initially then the DO gets initialized with the responded task group id being the DO id. the DO has 2 tables created on construction: details and runs. the DO needs to use @Queryable to properly allow studio access.
+
+# `GET /`
+
+HTML file that uses parallel style (see: https://assets.p0web.com
+) and cdn.tailwindcss.com script to allow easy access to the main api, storing parallel api key in localStorage.
+
+The form should allow for all possibilities and have a prefilled example so users can try immediately after entering their API key. After submitting, show buttons to open all different formats in new tab

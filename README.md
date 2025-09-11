@@ -1,4 +1,4 @@
-# Tasks MCP Demo - Cloudflare Worker
+# Parallel Multitask
 
 A Cloudflare Worker implementation that creates Parallel.ai task groups and provides streaming results through unique URLs.
 
@@ -34,9 +34,7 @@ Content-Type: application/json
 **Response:**
 
 ```json
-{
-  "url": "https://tasks-mcp-demo.parallel.ai/abc123-def456-ghi789"
-}
+{ "url": "https://tasks-mcp-demo.parallel.ai/abc123-def456-ghi789" }
 ```
 
 ### Get Results

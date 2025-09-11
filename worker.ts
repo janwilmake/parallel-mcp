@@ -1,50 +1,22 @@
 /// <reference types="@cloudflare/workers-types" />
 import { DurableObject } from "cloudflare:workers";
+import { Queryable, studioMiddleware } from "queryable-object";
 
 export interface Env {
-  TaskGroupDO: DurableObjectNamespace<TaskGroupDO>;
+  ADMIN_SECRET: string;
+  TASK_GROUP_DO: DurableObjectNamespace<TaskGroupDO>;
 }
 
+const ORIGIN = "https://multitask.parallel.ai";
+// Types
 interface TaskGroupInput {
-  /** If it's a URL, fetch that url, expecting an array of structured inputs data (JSON) */
   inputs: string | object[];
-  /** If provided, will ping this URL once all tasks are done */
   webhook_url?: string;
-  /** If not provided, will suggest processor */
   processor?: string;
   output_type: "text" | "json";
-  /**
-   * Provide either output_description or output_schema.
-   *
-   * - if description is provided for "text" output_type, text output will be available
-   * - if description is provided for "json" output_type, will suggest output_schema
-   * - if not provided, output_schema must be provided for "json" output_type
-   * - output_schema will not work in combination with "text" output_type
-   */
   output_description?: string;
-  output_schema?: JSONSchema;
+  output_schema?: any;
 }
-
-interface TaskGroupOutput {
-  /** URL at origin with pathname equal to the task run ID */
-  url: string;
-}
-
-interface TaskGroupResultOutput {
-  taskgroup_id: string;
-  metadata: any;
-  status: {
-    num_task_runs: number;
-    task_run_status_counts: object;
-    is_active: boolean;
-    status_message: string;
-    modified_at: string;
-  };
-  created_at: string;
-  results: object[];
-}
-
-type JSONSchema = any;
 
 export default {
   async fetch(
@@ -54,231 +26,65 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    // Handle CORS preflight requests
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        },
+    // Handle root path - serve HTML interface
+    if (url.pathname === "/" && request.method === "GET") {
+      return new Response(await getIndexHTML(), {
+        headers: { "content-type": "text/html" },
       });
     }
 
-    // Create task group endpoint
-    if (url.pathname === "/v1beta/tasks/groups" && request.method === "POST") {
-      try {
-        const input: TaskGroupInput = await request.json();
-        const parallelApiKey = request.headers.get("x-api-key");
-        // Validate required fields
-        if (!parallelApiKey) {
-          return new Response(
-            JSON.stringify({
-              error: {
-                message: "x-api-key header with Parallel API key is required",
-              },
-            }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        // Create a unique task group ID
-        const taskGroupId = crypto.randomUUID();
-
-        // Get the Durable Object instance
-        const doId = env.TaskGroupDO.idFromName(taskGroupId);
-        const doInstance = env.TaskGroupDO.get(doId);
-
-        // Initialize the task group in the DO
-        const doUrl = `${url.origin}/${taskGroupId}`;
-        await doInstance.initialize(input, doUrl, parallelApiKey);
-
-        // Return the URL immediately
-        const response: TaskGroupOutput = {
-          url: doUrl,
-        };
-
-        return new Response(JSON.stringify(response), {
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        });
-      } catch (error) {
-        return new Response(
-          JSON.stringify({
-            error: {
-              message: error instanceof Error ? error.message : "Unknown error",
-            },
-          }),
-          {
-            status: 500,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
+    // Handle multitask creation
+    if (
+      url.pathname === "/v1beta/tasks/multitask" &&
+      request.method === "POST"
+    ) {
+      return handleMultitask(request, env);
     }
 
-    // Handle results endpoint
+    // Handle task group results
     const pathMatch = url.pathname.match(
-      /^\/([^\/]+)(?:\.(json|md|html|sse))?$/
+      /^\/([a-zA-Z0-9_-]+)(?:\.(json|md|html|sse|db))?$/
     );
-    if (pathMatch && request.method === "GET") {
+    if (pathMatch) {
       const taskGroupId = pathMatch[1];
       const format =
-        pathMatch[2] ||
-        getFormatFromAcceptHeader(request.headers.get("accept"));
+        pathMatch[2] || getFormatFromAccept(request.headers.get("accept"));
 
-      const doId = env.TaskGroupDO.idFromName(taskGroupId);
-      const doInstance = env.TaskGroupDO.get(doId);
+      const stub = env.TASK_GROUP_DO.get(
+        env.TASK_GROUP_DO.idFromName(taskGroupId)
+      );
 
-      try {
-        if (format === "sse") {
-          // Server-Sent Events streaming
-          return await doInstance.streamResults();
-        } else {
-          // Get static results
-          const results = await doInstance.getResults(format);
-
-          if (!results) {
-            return new Response(
-              JSON.stringify({
-                error: { message: "Task group not found" },
-              }),
-              {
-                status: 404,
-                headers: {
-                  "Content-Type": "application/json",
-                  "Access-Control-Allow-Origin": "*",
-                },
-              }
-            );
-          }
-
-          const contentType = getContentType(format);
-          return new Response(results, {
-            headers: {
-              "Content-Type": contentType,
-              "Access-Control-Allow-Origin": "*",
-            },
-          });
-        }
-      } catch (error) {
-        return new Response(
-          JSON.stringify({
-            error: {
-              message: error instanceof Error ? error.message : "Unknown error",
-            },
-          }),
-          {
-            status: 500,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
+      if (format === "db") {
+        return studioMiddleware(request, stub.raw, {
+          basicAuth: { username: "admin", password: env.ADMIN_SECRET },
+        });
       }
+
+      return stub.fetch(request);
     }
 
     return new Response("Not Found", { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
 
-function getFormatFromAcceptHeader(acceptHeader: string | null): string {
-  if (!acceptHeader) return "json";
-
-  if (acceptHeader.includes("text/html")) return "html";
-  if (acceptHeader.includes("text/markdown")) return "md";
-  if (acceptHeader.includes("text/event-stream")) return "sse";
-
-  return "json";
-}
-
-function getContentType(format: string): string {
-  switch (format) {
-    case "html":
-      return "text/html";
-    case "md":
-      return "text/markdown";
-    case "sse":
-      return "text/event-stream";
-    default:
-      return "application/json";
-  }
-}
-
-export class TaskGroupDO extends DurableObject<Env> {
-  private sql: SqlStorage;
-  private env: Env;
-  private taskGroupId?: string;
-  private parallelTaskGroupId?: string;
-  private webhook_url?: string;
-  private output_type?: "text" | "json";
-  private isCompleted = false;
-
-  constructor(state: DurableObjectState, env: Env) {
-    super(state, env);
-    this.sql = state.storage.sql;
-    this.env = env;
+async function handleMultitask(request: Request, env: Env): Promise<Response> {
+  const apiKey = request.headers.get("x-api-key");
+  if (!apiKey) {
+    return new Response("Missing x-api-key header", { status: 401 });
   }
 
-  async initialize(input: TaskGroupInput, url: string, apiKey: string) {
-    this.taskGroupId = url.split("/").pop()!;
-    this.webhook_url = input.webhook_url;
-    this.output_type = input.output_type;
+  const body: TaskGroupInput = await request.json();
 
-    // Initialize database schema
-    this.sql.exec(`
-      CREATE TABLE IF NOT EXISTS task_groups (
-        id TEXT PRIMARY KEY,
-        parallel_taskgroup_id TEXT,
-        webhook_url TEXT,
-        output_type TEXT,
-        created_at TEXT,
-        completed_at TEXT,
-        url TEXT
-      )
-    `);
+  // Validate required fields
+  if (!body.inputs || !body.output_type) {
+    return new Response("Missing required fields: inputs, output_type", {
+      status: 400,
+    });
+  }
 
-    this.sql.exec(`
-      CREATE TABLE IF NOT EXISTS task_runs (
-        id TEXT PRIMARY KEY,
-        task_group_id TEXT,
-        parallel_run_id TEXT,
-        status TEXT,
-        input TEXT,
-        output TEXT,
-        created_at TEXT,
-        modified_at TEXT
-      )
-    `);
-
-    // Resolve inputs (fetch from URL if needed)
-    let resolvedInputs: object[];
-    if (typeof input.inputs === "string") {
-      try {
-        const response = await fetch(input.inputs);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch inputs: ${response.status}`);
-        }
-        resolvedInputs = await response.json();
-      } catch (error) {
-        throw new Error(
-          `Failed to fetch inputs from URL: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`
-        );
-      }
-    } else {
-      resolvedInputs = input.inputs;
-    }
-
-    // Create task group in Parallel API
-    const createGroupResponse = await fetch(
+  try {
+    // Create task group
+    const groupResponse = await fetch(
       "https://api.parallel.ai/v1beta/tasks/groups",
       {
         method: "POST",
@@ -290,34 +96,40 @@ export class TaskGroupDO extends DurableObject<Env> {
       }
     );
 
-    if (!createGroupResponse.ok) {
+    if (!groupResponse.ok) {
       throw new Error(
-        `Failed to create task group: ${createGroupResponse.status}`
+        `Failed to create task group: ${groupResponse.statusText}`
       );
     }
 
-    const groupData = await createGroupResponse.json();
-    this.parallelTaskGroupId = groupData.taskgroup_id;
+    const groupData = await groupResponse.json();
+    const taskGroupId = groupData.taskgroup_id;
 
-    // Store task group info
-    this.sql.exec(
-      `INSERT INTO task_groups (id, parallel_taskgroup_id, webhook_url, output_type, created_at, url)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      this.taskGroupId,
-      this.parallelTaskGroupId,
-      this.webhook_url || null,
-      this.output_type,
-      new Date().toISOString(),
-      url
-    );
+    // Process inputs
+    let inputs: object[] = [];
+    if (typeof body.inputs === "string") {
+      const inputsResponse = await fetch(body.inputs);
+      if (!inputsResponse.ok) {
+        throw new Error("Failed to fetch inputs from URL");
+      }
+      inputs = await inputsResponse.json();
+    } else {
+      inputs = body.inputs;
+    }
 
-    // Suggest processor if not provided
-    let processor = input.processor || "core";
-    if (!input.processor) {
-      // Use suggest processor API if available
-      try {
+    // Prepare task specification
+    let taskSpec: any = {};
+
+    if (body.output_type === "json") {
+      if (body.output_schema) {
+        taskSpec.output_schema = {
+          type: "json",
+          json_schema: body.output_schema,
+        };
+      } else if (body.output_description) {
+        // Use suggest API to generate schema from description
         const suggestResponse = await fetch(
-          "https://api.parallel.ai/v1beta/tasks/suggest-processor",
+          "https://api.parallel.ai/v1beta/tasks/suggest",
           {
             method: "POST",
             headers: {
@@ -325,518 +137,1061 @@ export class TaskGroupDO extends DurableObject<Env> {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              task_spec: {
-                output_schema: input.output_schema ||
-                  input.output_description || { type: "auto" },
-              },
-              choose_processors_from: ["lite", "base", "core", "pro", "ultra"],
+              user_intent: body.output_description,
             }),
           }
         );
 
         if (suggestResponse.ok) {
-          const suggestData: any = await suggestResponse.json();
-          if (suggestData.recommended_processors?.length > 0) {
-            processor = suggestData.recommended_processors[0];
-          }
+          const suggestion = await suggestResponse.json();
+          taskSpec = {
+            input_schema: suggestion.input_schema
+              ? {
+                  type: "json",
+                  json_schema: suggestion.input_schema,
+                }
+              : undefined,
+            output_schema: {
+              type: "json",
+              json_schema: suggestion.output_schema,
+            },
+          };
         }
-      } catch (error) {
-        console.log(
-          "Failed to get processor suggestion, using default:",
-          error
-        );
+      } else {
+        taskSpec.output_schema = { type: "auto" };
       }
-    }
-
-    // Prepare task spec
-    let taskSpec: any = null;
-    if (input.output_schema || input.output_description) {
-      taskSpec = {
-        output_schema:
-          input.output_type === "json"
-            ? input.output_schema || { type: "auto" }
-            : input.output_description || "Provide the requested information",
+    } else {
+      taskSpec.output_schema = {
+        type: "text",
+        description: body.output_description || "Text output from task",
       };
     }
 
-    // Format task spec for API
-    let formattedTaskSpec: any = null;
-    if (taskSpec) {
-      formattedTaskSpec = {};
-      if (taskSpec.output_schema) {
-        if (input.output_type === "json") {
-          formattedTaskSpec.output_schema = {
-            type: "json",
-            json_schema:
-              typeof taskSpec.output_schema === "string"
-                ? { type: "object", description: taskSpec.output_schema }
-                : taskSpec.output_schema,
-          };
-        } else {
-          formattedTaskSpec.output_schema = {
-            type: "text",
-            description:
-              typeof taskSpec.output_schema === "string"
-                ? taskSpec.output_schema
-                : "Provide the requested information",
-          };
+    // Suggest processor if not provided
+    let processor = body.processor;
+    if (!processor) {
+      const processorResponse = await fetch(
+        "https://api.parallel.ai/v1beta/tasks/suggest-processor",
+        {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            task_spec: taskSpec,
+            choose_processors_from: ["lite", "base", "core", "pro", "ultra"],
+          }),
         }
+      );
+
+      if (processorResponse.ok) {
+        const suggestion = await processorResponse.json();
+        processor = suggestion.recommended_processors?.[0] || "core";
+      } else {
+        processor = "core";
       }
     }
 
-    // Create task runs
-    const taskInputs = resolvedInputs.map((inputData) => ({
-      input: inputData,
+    // Create task run inputs
+    const runInputs = inputs.map((input) => ({
+      input: input,
       processor: processor,
     }));
 
-    const addRunsResponse = await fetch(
-      `https://api.parallel.ai/v1beta/tasks/groups/${this.parallelTaskGroupId}/runs`,
-      {
-        method: "POST",
-        headers: {
-          "x-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          default_task_spec: formattedTaskSpec,
-          inputs: taskInputs,
-        }),
-      }
-    );
+    // Add runs to group in batches
+    const batchSize = 500;
+    const runIds: string[] = [];
 
-    if (!addRunsResponse.ok) {
-      throw new Error(
-        `Failed to add runs to task group: ${addRunsResponse.status}`
+    for (let i = 0; i < runInputs.length; i += batchSize) {
+      const batch = runInputs.slice(i, i + batchSize);
+
+      const runsResponse = await fetch(
+        `https://api.parallel.ai/v1beta/tasks/groups/${taskGroupId}/runs`,
+        {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            default_task_spec: taskSpec,
+            inputs: batch,
+          }),
+        }
       );
-    }
 
-    const runsData: any = await addRunsResponse.json();
-
-    // Store task runs
-    for (let i = 0; i < runsData.run_ids.length; i++) {
-      const runId = runsData.run_ids[i];
-      this.sql.exec(
-        `INSERT INTO task_runs (id, task_group_id, parallel_run_id, status, input, created_at, modified_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        crypto.randomUUID(),
-        this.taskGroupId,
-        runId,
-        "queued",
-        JSON.stringify(resolvedInputs[i]),
-        new Date().toISOString(),
-        new Date().toISOString()
-      );
-    }
-
-    // Start streaming results in background
-    this.ctx.waitUntil(this.startStreaming(apiKey));
-  }
-
-  async startStreaming(apiKey: string) {
-    if (!this.parallelTaskGroupId) return;
-
-    try {
-      while (!this.isCompleted) {
-        const streamResponse = await fetch(
-          `https://api.parallel.ai/v1beta/tasks/groups/${this.parallelTaskGroupId}/runs?include_input=true&include_output=true`,
-          {
-            headers: {
-              "x-api-key": apiKey,
-            },
-          }
+      if (!runsResponse.ok) {
+        throw new Error(
+          `Failed to add runs to group: ${runsResponse.statusText}`
         );
-
-        if (!streamResponse.ok) {
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-          continue;
-        }
-
-        if (!streamResponse.body) {
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-          continue;
-        }
-
-        const reader = streamResponse.body.getReader();
-        const decoder = new TextDecoder();
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value);
-            const lines = chunk.split("\n").filter((line) => line.trim());
-
-            for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-                  if (data.type === "task_run.state" && data.run) {
-                    await this.updateTaskRun(data);
-                  }
-                } catch (e) {
-                  // Ignore parsing errors
-                }
-              }
-            }
-          }
-        } finally {
-          reader.releaseLock();
-        }
-
-        // Check if all tasks are completed
-        await this.checkCompletion();
-
-        if (!this.isCompleted) {
-          // Wait before retrying
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
       }
-    } catch (error) {
-      console.error("Streaming error:", error);
-      // Retry after a delay
-      await new Promise((resolve) => setTimeout(resolve, 10000));
-      if (!this.isCompleted) {
-        this.ctx.waitUntil(this.startStreaming(apiKey));
-      }
+
+      const runsData = await runsResponse.json();
+      runIds.push(...runsData.run_ids);
     }
-  }
 
-  async updateTaskRun(data: any) {
-    const runId = data.run.run_id;
-    const status = data.run.status;
-    const output = data.output ? JSON.stringify(data.output) : null;
-
-    this.sql.exec(
-      `UPDATE task_runs 
-       SET status = ?, output = ?, modified_at = ? 
-       WHERE parallel_run_id = ?`,
-      status,
-      output,
-      new Date().toISOString(),
-      runId
+    // Initialize Durable Object
+    const stub = env.TASK_GROUP_DO.get(
+      env.TASK_GROUP_DO.idFromName(taskGroupId)
     );
+    await stub.initialize(
+      taskGroupId,
+      apiKey,
+      body.webhook_url,
+      groupData,
+      runIds,
+      inputs // Pass the original inputs array
+    );
+
+    const origin = new URL(request.url).origin;
+    return new Response(`${origin}/${taskGroupId}`);
+  } catch (error) {
+    console.error("Error in handleMultitask:", error);
+    return new Response(`Error: ${error.message}`, { status: 500 });
+  }
+}
+
+function getFormatFromAccept(accept: string | null): string {
+  if (!accept) return "json";
+
+  if (accept.includes("text/html")) return "html";
+  if (accept.includes("text/markdown")) return "md";
+  if (accept.includes("text/event-stream")) return "sse";
+  return "json";
+}
+
+@Queryable()
+export class TaskGroupDO extends DurableObject<Env> {
+  sql: SqlStorage;
+  env: Env;
+  private streamController: AbortController | null = null;
+  private isStreaming = false;
+
+  constructor(state: DurableObjectState, env: Env) {
+    super(state, env);
+    this.env = env;
+    this.sql = state.storage.sql;
+
+    // Initialize database tables
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS details (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `);
+
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS runs (
+        run_id TEXT PRIMARY KEY,
+        input_index INTEGER,
+        status TEXT,
+        is_active BOOLEAN,
+        processor TEXT,
+        metadata TEXT,
+        created_at TEXT,
+        modified_at TEXT,
+        input TEXT,
+        output TEXT,
+        output_basis TEXT,
+        error TEXT
+      )
+    `);
   }
 
-  async checkCompletion() {
-    const activeTasks = this.sql
-      .exec(
-        `SELECT COUNT(*) as count FROM task_runs 
-       WHERE task_group_id = ? AND status IN ('queued', 'running', 'action_required')`,
-        this.taskGroupId
-      )
-      .toArray()[0] as any;
+  async initialize(
+    taskGroupId: string,
+    apiKey: string,
+    webhookUrl: string | undefined,
+    groupData: any,
+    runIds: string[],
+    originalInputs: object[]
+  ): Promise<void> {
+    // Store initial data
+    this.sql.exec(
+      "INSERT OR REPLACE INTO details (key, value) VALUES (?, ?)",
+      "taskgroup_id",
+      taskGroupId
+    );
+    this.sql.exec(
+      "INSERT OR REPLACE INTO details (key, value) VALUES (?, ?)",
+      "api_key",
+      apiKey
+    );
+    this.sql.exec(
+      "INSERT OR REPLACE INTO details (key, value) VALUES (?, ?)",
+      "webhook_url",
+      webhookUrl || ""
+    );
+    this.sql.exec(
+      "INSERT OR REPLACE INTO details (key, value) VALUES (?, ?)",
+      "group_data",
+      JSON.stringify(groupData)
+    );
+    this.sql.exec(
+      "INSERT OR REPLACE INTO details (key, value) VALUES (?, ?)",
+      "run_ids",
+      JSON.stringify(runIds)
+    );
+    this.sql.exec(
+      "INSERT OR REPLACE INTO details (key, value) VALUES (?, ?)",
+      "original_inputs",
+      JSON.stringify(originalInputs)
+    );
 
-    if (activeTasks.count === 0) {
-      this.isCompleted = true;
-
-      // Mark as completed
+    // Initialize runs with input index mapping
+    for (let i = 0; i < runIds.length; i++) {
+      const runId = runIds[i];
+      const inputIndex = i;
       this.sql.exec(
-        `UPDATE task_groups SET completed_at = ? WHERE id = ?`,
-        new Date().toISOString(),
-        this.taskGroupId
-      );
-
-      // Send webhook if configured
-      if (this.webhook_url) {
-        const taskGroup = this.sql
-          .exec(`SELECT url FROM task_groups WHERE id = ?`, this.taskGroupId)
-          .toArray()[0] as any;
-
-        try {
-          await fetch(this.webhook_url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              url: taskGroup.url,
-            }),
-          });
-        } catch (error) {
-          console.error("Webhook error:", error);
-        }
-      }
-
-      // Schedule cleanup alarm (30 days from now)
-      this.ctx.storage.setAlarm(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    }
-  }
-
-  async alarm() {
-    // Clean up after 30 days
-    this.sql.exec(
-      `DELETE FROM task_runs WHERE task_group_id = ?`,
-      this.taskGroupId
-    );
-    this.sql.exec(`DELETE FROM task_groups WHERE id = ?`, this.taskGroupId);
-  }
-
-  async getResults(format: string): Promise<string | null> {
-    const taskGroup = this.sql
-      .exec(`SELECT * FROM task_groups WHERE id = ?`, this.taskGroupId)
-      .toArray()[0] as any;
-
-    if (!taskGroup) return null;
-
-    const taskRuns = this.sql
-      .exec(
-        `SELECT * FROM task_runs WHERE task_group_id = ? ORDER BY created_at`,
-        this.taskGroupId
-      )
-      .toArray();
-
-    // Get status counts
-    const statusCounts = this.sql
-      .exec(
         `
-      SELECT status, COUNT(*) as count 
-      FROM task_runs 
-      WHERE task_group_id = ? 
-      GROUP BY status
-    `,
-        this.taskGroupId
-      )
-      .toArray();
-
-    const statusCountsObj: any = {};
-    let totalRuns = 0;
-    let isActive = false;
-
-    for (const row of statusCounts) {
-      const r = row as any;
-      statusCountsObj[r.status] = r.count;
-      totalRuns += r.count;
-      if (["queued", "running", "action_required"].includes(r.status)) {
-        isActive = true;
-      }
+        INSERT OR REPLACE INTO runs (run_id, input_index, status, is_active, processor, metadata, created_at, modified_at, input)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+        runId,
+        inputIndex,
+        "queued",
+        true,
+        "",
+        "{}",
+        new Date().toISOString(),
+        new Date().toISOString(),
+        JSON.stringify(originalInputs[i])
+      );
     }
 
-    const results = taskRuns.map((run: any) => {
-      const result: any = {
-        run_id: run.parallel_run_id,
+    // Start streaming
+    this.startStreaming();
+  }
+
+  async getData(): Promise<any> {
+    const taskGroupId = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
+      .toArray()[0]?.value;
+    const groupDataRaw = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "group_data")
+      .toArray()[0]?.value;
+    const groupData = groupDataRaw ? JSON.parse(groupDataRaw) : {};
+
+    const runs = this.sql
+      .exec("SELECT * FROM runs ORDER BY input_index")
+      .toArray();
+
+    // Process runs to create flat results with merged input and output
+    const results: any[] = [];
+    const fullRuns: any[] = [];
+
+    for (const run of runs) {
+      const runObj: any = {
+        run_id: run.run_id,
+        input_index: run.input_index,
         status: run.status,
-        input: run.input ? JSON.parse(run.input) : null,
+        is_active: !!run.is_active,
+        processor: run.processor,
+        created_at: run.created_at,
+        modified_at: run.modified_at,
       };
 
-      if (run.output) {
-        result.output = JSON.parse(run.output);
+      // Parse input data
+      let inputData = {};
+      if (run.input) {
+        try {
+          inputData = JSON.parse(run.input as string);
+          runObj.input = inputData;
+        } catch {
+          inputData = { input: run.input };
+          runObj.input = run.input;
+        }
       }
 
-      return result;
-    });
+      // Parse output data
+      let outputContent = {};
+      if (run.output) {
+        try {
+          const output = JSON.parse(run.output as string);
+          runObj.output = output;
 
-    const resultOutput: TaskGroupResultOutput = {
-      taskgroup_id: taskGroup.parallel_taskgroup_id,
-      metadata: {},
-      status: {
-        num_task_runs: totalRuns,
-        task_run_status_counts: statusCountsObj,
-        is_active: isActive,
-        status_message: isActive ? "Processing" : "Completed",
-        modified_at: taskGroup.completed_at || taskGroup.created_at,
+          // Extract content from output
+          if (output.content) {
+            outputContent =
+              typeof output.content === "object"
+                ? output.content
+                : { content: output.content };
+          }
+        } catch {
+          outputContent = { content: run.output };
+          runObj.output = { content: run.output };
+        }
+      }
+
+      // Create flat result object: {$id, status, ...input, ...output.content}
+      const resultItem = {
+        $id: run.run_id,
+        status: run.status,
+        ...inputData, // Spread the input object properties
+        ...outputContent, // Spread the output.content properties
+      };
+
+      results.push(resultItem);
+
+      if (run.output_basis) {
+        try {
+          runObj.output_basis = JSON.parse(run.output_basis as string);
+        } catch {
+          runObj.output_basis = run.output_basis;
+        }
+      }
+
+      if (run.error) {
+        try {
+          runObj.error = JSON.parse(run.error as string);
+        } catch {
+          runObj.error = run.error;
+        }
+      }
+
+      if (run.metadata && run.metadata !== "{}") {
+        try {
+          runObj.metadata = JSON.parse(run.metadata as string);
+        } catch {
+          runObj.metadata = run.metadata;
+        }
+      }
+
+      fullRuns.push(runObj);
+    }
+
+    return {
+      id: taskGroupId,
+      metadata: groupData.metadata || {},
+      status: groupData.status || {
+        num_task_runs: runs.length,
+        task_run_status_counts: this.getStatusCounts(runs),
+        is_active: runs.some((r) => r.is_active),
+        status_message: "",
+        modified_at: new Date().toISOString(),
       },
-      created_at: taskGroup.created_at,
-      results: results.map((r) => r.output).filter(Boolean),
+      created_at: groupData.created_at || new Date().toISOString(),
+      output_schema: groupData.output_schema || null,
+      results,
+      runs: fullRuns,
     };
+  }
+
+  private getStatusCounts(runs: any[]): Record<string, number> {
+    const counts: Record<string, number> = {};
+    for (const run of runs) {
+      const status = run.status as string;
+      counts[status] = (counts[status] || 0) + 1;
+    }
+    return counts;
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const pathMatch = url.pathname.match(
+      /^\/([^.]+)(?:\.(json|md|html|sse))?$/
+    );
+
+    if (!pathMatch) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const format =
+      pathMatch[2] || getFormatFromAccept(request.headers.get("accept"));
+    const data = await this.getData();
 
     switch (format) {
       case "json":
-        return JSON.stringify(resultOutput, null, 2);
+        return new Response(JSON.stringify(data, null, 2), {
+          headers: { "content-type": "application/json;charset=utf8" },
+        });
 
       case "md":
-        return this.formatAsMarkdown(resultOutput);
+        return new Response(formatAsMarkdown(data), {
+          headers: { "content-type": "text/markdown;charset=utf8" },
+        });
 
       case "html":
-        return this.formatAsHtml(resultOutput);
+        return new Response(formatAsHTML(data), {
+          headers: { "content-type": "text/html;charset=utf8" },
+        });
+
+      case "sse":
+        return this.handleSSE(request);
 
       default:
-        return JSON.stringify(resultOutput, null, 2);
+        return new Response(JSON.stringify(data, null, 2), {
+          headers: { "content-type": "application/json;charset=utf8" },
+        });
     }
   }
 
-  private formatAsMarkdown(data: TaskGroupResultOutput): string {
-    let md = `# Task Group Results\n\n`;
-    md += `**Status**: ${
-      data.status.is_active ? "🟡 Processing" : "✅ Completed"
-    }\n`;
-    md += `**Total Tasks**: ${data.status.num_task_runs}\n`;
-    md += `**Created**: ${new Date(data.created_at).toLocaleString()}\n\n`;
-
-    if (data.results.length > 0) {
-      md += `## Results\n\n`;
-
-      // Create a simple table
-      md += `| # | Result | Confidence |\n`;
-      md += `|---|--------|------------|\n`;
-
-      data.results.forEach((result: any, index) => {
-        const confidence = this.getConfidenceEmoji(
-          result.confidence || "medium"
-        );
-        const resultText = this.extractResultText(result);
-        md += `| ${index + 1} | ${resultText} | ${confidence} |\n`;
-      });
-    }
-
-    return md;
-  }
-
-  private formatAsHtml(data: TaskGroupResultOutput): string {
-    const resultHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Task Group Results</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .status { padding: 10px; border-radius: 5px; margin: 20px 0; }
-        .active { background-color: #fff3cd; border: 1px solid #ffeaa7; }
-        .completed { background-color: #d4edda; border: 1px solid #c3e6cb; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #f2f2f2; }
-        .confidence { font-size: 1.2em; }
-    </style>
-</head>
-<body>
-    <h1>Task Group Results</h1>
-    <div class="status ${data.status.is_active ? "active" : "completed"}">
-        <strong>Status:</strong> ${
-          data.status.is_active ? "🟡 Processing" : "✅ Completed"
-        }<br>
-        <strong>Total Tasks:</strong> ${data.status.num_task_runs}<br>
-        <strong>Created:</strong> ${new Date(data.created_at).toLocaleString()}
-    </div>
-    
-    ${
-      data.results.length > 0
-        ? `
-    <h2>Results</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Result</th>
-                <th>Confidence</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${data.results
-              .map(
-                (result: any, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${this.extractResultText(result)}</td>
-                <td class="confidence">${this.getConfidenceEmoji(
-                  result.confidence || "medium"
-                )}</td>
-            </tr>
-            `
-              )
-              .join("")}
-        </tbody>
-    </table>
-    `
-        : "<p>No results available yet.</p>"
-    }
-    
-    <script type="application/json" id="resultData">
-    ${JSON.stringify(data, null, 2)}
-    </script>
-</body>
-</html>`;
-
-    return resultHtml;
-  }
-
-  private extractResultText(result: any): string {
-    if (typeof result === "string") return result;
-    if (result.content) return JSON.stringify(result.content);
-    return JSON.stringify(result);
-  }
-
-  private getConfidenceEmoji(confidence: string): string {
-    switch (confidence?.toLowerCase()) {
-      case "high":
-        return "🟢";
-      case "medium":
-        return "🟡";
-      case "low":
-        return "🔴";
-      default:
-        return "🟡";
-    }
-  }
-
-  async streamResults(): Promise<Response> {
+  private async handleSSE(request: Request): Promise<Response> {
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
-    this.ctx.waitUntil(
-      (async () => {
-        try {
-          // Send initial status
-          const results = await this.getResults("json");
-          if (results) {
-            const data = JSON.parse(results);
-            await writer.write(
-              new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`)
+    const encoder = new TextEncoder();
+
+    // Send initial data
+    const data = await this.getData();
+    await writer.write(
+      encoder.encode(`data: ${JSON.stringify({ type: "initial", data })}\n\n`)
+    );
+
+    // Store current state to detect changes
+    let lastRunStates = new Map();
+    for (const run of data.runs) {
+      lastRunStates.set(run.run_id, {
+        status: run.status,
+        output: run.output,
+        output_basis: run.output_basis,
+      });
+    }
+
+    // Keep connection alive and send updates for individual run changes
+    const updateInterval = setInterval(async () => {
+      try {
+        const currentData = await this.getData();
+
+        // Check for run updates
+        for (const run of currentData.runs) {
+          const lastState = lastRunStates.get(run.run_id);
+          const currentState = {
+            status: run.status,
+            output: run.output,
+            output_basis: run.output_basis,
+          };
+
+          if (
+            !lastState ||
+            JSON.stringify(lastState) !== JSON.stringify(currentState)
+          ) {
+            // Find the corresponding result for this run
+            const result = currentData.results.find(
+              (r) => r.$id === run.run_id
             );
+
+            // Send individual run update with merged result
+            await writer.write(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "run_update",
+                  run: run,
+                  result: result,
+                })}\n\n`
+              )
+            );
+
+            lastRunStates.set(run.run_id, currentState);
           }
+        }
 
-          // Keep connection alive and stream updates
-          while (!this.isCompleted) {
-            await new Promise((resolve) => setTimeout(resolve, 5000));
-
-            const updatedResults = await this.getResults("json");
-            if (updatedResults) {
-              const data = JSON.parse(updatedResults);
-              await writer.write(
-                new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`)
-              );
-
-              if (!data.status.is_active) {
-                this.isCompleted = true;
-                break;
-              }
-            }
-          }
-
-          await writer.write(new TextEncoder().encode(`data: [DONE]\n\n`));
-        } catch (error) {
-          console.error("Stream error:", error);
-        } finally {
+        // Check if all tasks are complete
+        if (!currentData.status.is_active) {
+          await writer.write(
+            encoder.encode(`data: ${JSON.stringify({ type: "complete" })}\n\n`)
+          );
+          clearInterval(updateInterval);
           await writer.close();
         }
-      })()
-    );
+      } catch (error) {
+        console.error("SSE update error:", error);
+        clearInterval(updateInterval);
+        await writer.close();
+      }
+    }, 2000);
+
+    // Cleanup on client disconnect
+    request.signal?.addEventListener("abort", () => {
+      clearInterval(updateInterval);
+      writer.close();
+    });
 
     return new Response(readable, {
       headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "Access-Control-Allow-Origin": "*",
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+        "access-control-allow-origin": "*",
       },
     });
   }
+
+  private async startStreaming(): Promise<void> {
+    if (this.isStreaming) return;
+
+    this.isStreaming = true;
+    this.streamController = new AbortController();
+
+    try {
+      await this.streamTaskGroupData();
+    } catch (error) {
+      console.error("Streaming error:", error);
+      // Retry after delay
+      setTimeout(() => {
+        this.isStreaming = false;
+        this.startStreaming();
+      }, 10000);
+    }
+  }
+
+  private async streamTaskGroupData(): Promise<void> {
+    const apiKey = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "api_key")
+      .toArray()[0]?.value;
+    const taskGroupId = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
+      .toArray()[0]?.value;
+
+    if (!apiKey || !taskGroupId) return;
+
+    const runsUrl = `https://api.parallel.ai/v1beta/tasks/groups/${taskGroupId}/runs?include_input=true&include_output=true`;
+
+    while (this.isStreaming && !this.streamController?.signal.aborted) {
+      try {
+        const response = await fetch(runsUrl, {
+          headers: { "x-api-key": apiKey },
+          signal: this.streamController?.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Stream request failed: ${response.statusText}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += new TextDecoder().decode(value);
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const eventData = JSON.parse(line.slice(6));
+                if (eventData.type === "task_run.state") {
+                  await this.updateRun(eventData);
+                }
+              } catch (error) {
+                console.error("Error parsing event data:", error);
+              }
+            }
+          }
+        }
+
+        // Check if all tasks are complete
+        const activeRuns = this.sql
+          .exec("SELECT COUNT(*) as count FROM runs WHERE is_active = 1")
+          .toArray()[0];
+        if (activeRuns?.count === 0) {
+          await this.handleCompletion();
+          break;
+        }
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error("Stream error:", error);
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+      }
+    }
+  }
+
+  private async updateRun(eventData: any): Promise<void> {
+    const run = eventData.run;
+    const input = eventData.input;
+    const output = eventData.output;
+
+    this.sql.exec(
+      `
+      UPDATE runs SET
+        status = ?,
+        is_active = ?,
+        processor = ?,
+        metadata = ?,
+        modified_at = ?,
+        output = ?,
+        output_basis = ?,
+        error = ?
+      WHERE run_id = ?
+    `,
+      run.status,
+      run.is_active ? 1 : 0,
+      run.processor,
+      JSON.stringify(run.metadata || {}),
+      run.modified_at,
+      output ? JSON.stringify(output) : null,
+      output?.basis ? JSON.stringify(output.basis) : null,
+      run.error ? JSON.stringify(run.error) : null,
+      run.run_id
+    );
+  }
+
+  private async handleCompletion(): Promise<void> {
+    this.isStreaming = false;
+
+    // Send webhook if configured
+    const webhookUrl = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "webhook_url")
+      .toArray()[0]?.value;
+    const taskGroupId = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
+      .toArray()[0]?.value;
+
+    if (webhookUrl && taskGroupId) {
+      try {
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `${ORIGIN}/${taskGroupId}`,
+          }),
+        });
+      } catch (error) {
+        console.error("Webhook error:", error);
+      }
+    }
+
+    // Schedule cleanup alarm (30 days)
+    await this.state.storage.setAlarm(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  }
+
+  async alarm(): Promise<void> {
+    // Clean up DO after 30 days
+    await this.state.storage.deleteAll();
+  }
 }
 
-interface SqlStorage {
-  exec<T extends Record<string, SqlStorageValue>>(
-    query: string,
-    ...bindings: any[]
-  ): {
-    columnNames: string[];
-    raw<U extends SqlStorageValue[]>(): IterableIterator<U>;
-    toArray(): T[];
-    get rowsRead(): number;
-    get rowsWritten(): number;
-  };
-  /** size in bytes */
-  get databaseSize(): number;
+function formatAsMarkdown(data: any): string {
+  let md = `# Task Group Results\n\n`;
+  md += `**Task Group ID:** ${data.id}\n`;
+  md += `**Status:** ${data.status.is_active ? "🟡 Active" : "✅ Complete"}\n`;
+  md += `**Total Runs:** ${data.status.num_task_runs}\n`;
+  md += `**Created:** ${data.created_at}\n\n`;
+
+  if (data.results.length === 0) {
+    md += `*No results yet...*\n`;
+    return md;
+  }
+
+  // Get all unique properties from results (excluding $id and status)
+  const allProps = new Set<string>();
+  for (const result of data.results) {
+    Object.keys(result).forEach((key) => {
+      if (key !== "$id" && key !== "status") {
+        allProps.add(key);
+      }
+    });
+  }
+
+  const properties = Array.from(allProps);
+
+  md += `## Results\n\n`;
+  md += `| Status | ${properties
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" | ")} |\n`;
+  md += `|--------|${properties.map(() => "--------").join("|")}|\n`;
+
+  for (const result of data.results) {
+    const statusEmoji =
+      result.status === "completed"
+        ? "✅"
+        : result.status === "failed"
+        ? "❌"
+        : "🟡";
+    const values = properties.map((prop) => {
+      const value = result[prop];
+      if (value === undefined || value === null) return "";
+
+      const valueStr =
+        typeof value === "object" ? JSON.stringify(value) : String(value);
+      return valueStr.slice(0, 50) + (valueStr.length > 50 ? "..." : "");
+    });
+
+    md += `| ${statusEmoji} ${result.status} | ${values.join(" | ")} |\n`;
+  }
+
+  return md;
 }
 
-type SqlStorageValue = ArrayBuffer | string | number | null;
+function formatAsHTML(data: any): string {
+  // Get all unique properties from results (excluding $id and status)
+  const allProps = new Set<string>();
+  for (const result of data.results) {
+    Object.keys(result).forEach((key) => {
+      if (key !== "$id" && key !== "status") {
+        allProps.add(key);
+      }
+    });
+  }
+
+  const properties = Array.from(allProps);
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>Task Group ${data.id}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://assets.p0web.com/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face {
+      font-family: 'FT System Mono';
+      src: url('https://assets.p0web.com/FTSystemMono-Regular.woff2') format('woff2');
+    }
+    body { font-family: 'FT System Mono', monospace; }
+  </style>
+  <script type="application/json" id="data">${JSON.stringify(data)}</script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-4">Task Group ${data.id}</h1>
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <p><strong>Status:</strong> <span id="taskGroupStatus" class="${
+            data.status.is_active ? "text-yellow-600" : "text-green-600"
+          }">${data.status.is_active ? "Active" : "Complete"}</span></p>
+          <p><strong>Total Runs:</strong> <span id="totalRuns">${
+            data.status.num_task_runs
+          }</span></p>
+        </div>
+        <div>
+          <p><strong>Created:</strong> ${new Date(
+            data.created_at
+          ).toLocaleString()}</p>
+          <p><strong>Modified:</strong> <span id="modifiedAt">${new Date(
+            data.status.modified_at
+          ).toLocaleString()}</span></p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <table class="min-w-full" id="resultsTable">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            ${properties
+              .map(
+                (prop) => `
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${
+              prop.charAt(0).toUpperCase() + prop.slice(1)
+            }</th>`
+              )
+              .join("")}
+          </tr>
+        </thead>
+        <tbody id="resultsBody" class="bg-white divide-y divide-gray-200">
+          ${data.results
+            .map((result, index) => {
+              const values = properties.map((prop) => {
+                const value = result[prop];
+                if (value === undefined || value === null) return "";
+                return typeof value === "object"
+                  ? JSON.stringify(value, null, 2)
+                  : String(value);
+              });
+
+              return `
+            <tr data-run-id="${result.$id}" data-row-index="${index}">
+              <td class="px-6 py-4 text-sm">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  result.status === "completed"
+                    ? "bg-green-100 text-green-800"
+                    : result.status === "failed"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-yellow-100 text-yellow-800"
+                }">
+                  ${result.status}
+                </span>
+              </td>
+              ${values
+                .map(
+                  (value) =>
+                    `<td class="px-6 py-4 text-sm text-gray-900 whitespace-pre-wrap">${value}</td>`
+                )
+                .join("")}
+            </tr>
+            `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const properties = ${JSON.stringify(properties)};
+    
+    // Setup SSE connection for live updates
+    const eventSource = new EventSource(window.location.pathname + '.sse');
+    
+    eventSource.onmessage = function(event) {
+      const message = JSON.parse(event.data);
+      
+      if (message.type === 'run_update') {
+        updateRunRow(message.run, message.result);
+      } else if (message.type === 'complete') {
+        document.getElementById('taskGroupStatus').textContent = 'Complete';
+        document.getElementById('taskGroupStatus').className = 'text-green-600';
+        eventSource.close();
+      }
+    };
+
+    function updateRunRow(run, result) {
+      const row = document.querySelector('[data-run-id="' + run.run_id + '"]');
+      if (!row) return;
+
+      // Update status
+      const statusCell = row.querySelector('td:first-child span');
+      if (statusCell) {
+        statusCell.textContent = run.status;
+        statusCell.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' + 
+          (run.status === "completed" ? "bg-green-100 text-green-800" :
+           run.status === "failed" ? "bg-red-100 text-red-800" : 
+           "bg-yellow-100 text-yellow-800");
+      }
+
+      // Update content using the flat result object
+      if (result) {
+        const cells = row.querySelectorAll('td');
+        
+        properties.forEach((prop, index) => {
+          const cellIndex = index + 1; // +1 because first cell is status
+          if (cells[cellIndex]) {
+            const value = result[prop];
+            if (value !== undefined && value !== null) {
+              cells[cellIndex].textContent = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
+            }
+          }
+        });
+      }
+    }
+
+    eventSource.onerror = function(event) {
+      console.error('SSE connection error:', event);
+      // Attempt to reconnect after 5 seconds
+      setTimeout(() => {
+        if (eventSource.readyState === EventSource.CLOSED) {
+          location.reload();
+        }
+      }, 5000);
+    };
+
+    window.addEventListener('beforeunload', () => {
+      eventSource.close();
+    });
+  </script>
+</body>
+</html>`;
+}
+
+async function getIndexHTML(): Promise<string> {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>Parallel.ai Task Groups</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://assets.p0web.com/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face {
+      font-family: 'FT System Mono';
+      src: url('https://assets.p0web.com/FTSystemMono-Regular.woff2') format('woff2');
+    }
+    body { font-family: 'FT System Mono', monospace; background: #fcfcfa; color: #1d1b16; }
+    .neural { background: #d8d0bf; }
+    .signal { color: #fb631b; }
+  </style>
+</head>
+<body class="min-h-screen p-8">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold mb-2">Parallel.ai Task Groups</h1>
+      <p class="text-gray-600">Batch process tasks at scale</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+      <form id="taskForm" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium mb-2">Parallel API Key</label>
+          <input type="password" id="apiKey" class="w-full p-3 border rounded-lg" placeholder="Enter your Parallel API key" required>
+          <p class="text-sm text-gray-500 mt-1">Your API key is stored locally in your browser</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium mb-2">Output Type</label>
+            <select id="outputType" class="w-full p-3 border rounded-lg" required>
+              <option value="json">JSON</option>
+              <option value="text">Text</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2">Processor (optional)</label>
+            <select id="processor" class="w-full p-3 border rounded-lg">
+              <option value="">Auto-suggest</option>
+              <option value="lite">Lite</option>
+              <option value="base">Base</option>
+              <option value="core">Core</option>
+              <option value="pro">Pro</option>
+              <option value="ultra">Ultra</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">Output Description</label>
+          <textarea id="outputDescription" class="w-full p-3 border rounded-lg h-24" placeholder="Describe what you want the output to contain..."></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">Output Schema (JSON only, optional)</label>
+          <textarea id="outputSchema" class="w-full p-3 border rounded-lg h-32 font-mono text-sm" placeholder='{"type": "object", "properties": {...}}'></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">Inputs</label>
+          <textarea id="inputs" class="w-full p-3 border rounded-lg h-48 font-mono text-sm" placeholder="Enter JSON array of inputs or URL to fetch inputs" required></textarea>
+          <p class="text-sm text-gray-500 mt-1">Enter a JSON array of objects or a URL that returns a JSON array</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">Webhook URL (optional)</label>
+          <input type="url" id="webhookUrl" class="w-full p-3 border rounded-lg" placeholder="https://your-webhook-url.com">
+          <p class="text-sm text-gray-500 mt-1">We'll POST to this URL when all tasks are complete</p>
+        </div>
+
+        <div class="flex gap-4">
+          <button type="submit" class="flex-1 signal bg-orange-500 text-white py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors">
+            Create Task Group
+          </button>
+          <button type="button" id="loadExample" class="neural px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors">
+            Load Example
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div id="results" class="hidden bg-white rounded-lg shadow-lg p-6">
+      <h2 class="text-2xl font-bold mb-4">Task Group Created!</h2>
+      <p class="mb-4">Your task group URL: <a id="resultUrl" class="signal underline" target="_blank"></a></p>
+      <div class="flex flex-wrap gap-2">
+        <a id="jsonLink" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors" target="_blank">View JSON</a>
+        <a id="htmlLink" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors" target="_blank">View HTML</a>
+        <a id="mdLink" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors" target="_blank">View Markdown</a>
+        <a id="sseLink" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors" target="_blank">Live Stream</a>
+        <a id="dbLink" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors" target="_blank">Database Studio</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Load API key from localStorage
+    const apiKeyInput = document.getElementById('apiKey');
+    const savedApiKey = localStorage.getItem('parallelApiKey');
+    if (savedApiKey) {
+      apiKeyInput.value = savedApiKey;
+    }
+
+    // Save API key to localStorage on input
+    apiKeyInput.addEventListener('input', () => {
+      localStorage.setItem('parallelApiKey', apiKeyInput.value);
+    });
+
+    // Load example data
+    document.getElementById('loadExample').addEventListener('click', () => {
+      document.getElementById('outputType').value = 'json';
+      document.getElementById('processor').value = 'lite';
+      document.getElementById('outputDescription').value = 'Extract company information including CEO, industry, and revenue';
+      document.getElementById('outputSchema').value = JSON.stringify({
+        "type": "object",
+        "properties": {
+          "company_name": {"type": "string"},
+          "ceo": {"type": "string"},
+          "industry": {"type": "string"},
+          "revenue": {"type": "string"}
+        },
+        "required": ["company_name", "ceo", "industry"]
+      }, null, 2);
+      document.getElementById('inputs').value = JSON.stringify([
+        {"company_name": "Apple", "company_website": "https://apple.com"},
+        {"company_name": "Microsoft", "company_website": "https://microsoft.com"},
+        {"company_name": "Google", "company_website": "https://google.com"}
+      ], null, 2);
+    });
+
+    // Handle form submission
+    document.getElementById('taskForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const apiKey = document.getElementById('apiKey').value;
+      
+      if (!apiKey) {
+        alert('Please enter your Parallel API key');
+        return;
+      }
+
+      const data = {
+        inputs: document.getElementById('inputs').value,
+        output_type: document.getElementById('outputType').value,
+        processor: document.getElementById('processor').value || undefined,
+        output_description: document.getElementById('outputDescription').value || undefined,
+        output_schema: document.getElementById('outputSchema').value ? JSON.parse(document.getElementById('outputSchema').value) : undefined,
+        webhook_url: document.getElementById('webhookUrl').value || undefined
+      };
+
+      // Try to parse inputs as JSON, otherwise treat as URL
+      try {
+        data.inputs = JSON.parse(data.inputs);
+      } catch {
+        // Keep as string (URL)
+      }
+
+      try {
+        const response = await fetch('/v1beta/tasks/multitask', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const resultUrl = await response.text();
+        
+        // Show results
+        const resultsDiv = document.getElementById('results');
+        const urlLink = document.getElementById('resultUrl');
+        
+        urlLink.href = resultUrl;
+        urlLink.textContent = resultUrl;
+        
+        // Set up format links
+        document.getElementById('jsonLink').href = resultUrl + '.json';
+        document.getElementById('htmlLink').href = resultUrl + '.html';
+        document.getElementById('mdLink').href = resultUrl + '.md';
+        document.getElementById('sseLink').href = resultUrl + '.sse';
+        document.getElementById('dbLink').href = resultUrl + '.db';
+        
+        resultsDiv.classList.remove('hidden');
+        resultsDiv.scrollIntoView({ behavior: 'smooth' });
+
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    });
+  </script>
+</body>
+</html>`;
+}

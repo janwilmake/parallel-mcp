@@ -1,16 +1,13 @@
 {
   "$schema": "https://unpkg.com/wrangler@latest/config-schema.json",
-  "name": "parallel-multitask",
-  "main": "worker.ts",
   "account_id": "aceab98f1a2fc658ed4e20bc307fa65a",
-  "compatibility_date": "2025-09-11",
-  "assets": { "directory": "./" },
-  "observability": {
-    "logs": { "enabled": true }
-  },
+  "name": "parallel-task-groups",
+  "main": "worker.ts",
+  "compatibility_date": "2025-09-10",
+  "observability": { "logs": { "enabled": true } },
   "durable_objects": {
-    "bindings": [{ "name": "TaskGroupDO", "class_name": "TaskGroupDO" }]
+    "bindings": [{ "name": "TASK_GROUP_DO", "class_name": "TaskGroupDO" }]
   },
-  //"routes": [{ "pattern": "tasks-mcp.parallel.ai", "custom_domain": true }],
+  "routes": [{ "custom_domain": true, "pattern": "multitask.jan.parallel.ai" }],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TaskGroupDO"] }]
 }
