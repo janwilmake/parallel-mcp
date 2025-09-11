@@ -252,7 +252,7 @@ async function handleMultitask(request: Request, env: Env): Promise<Response> {
 }
 
 function getFormatFromAccept(accept: string | null): string {
-  if (!accept) return "json";
+  if (!accept) return "md";
 
   if (accept.includes("text/html")) return "html";
   if (accept.includes("text/markdown")) return "md";
