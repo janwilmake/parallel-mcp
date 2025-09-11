@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks MCP Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        textarea,
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        textarea {
+            height: 120px;
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        input[type="password"] {
+            font-family: monospace;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .url-result {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .format-links {
+            margin: 10px 0;
+        }
+
+        .format-links a {
+            display: inline-block;
+            margin-right: 15px;
+            padding: 5px 10px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        .format-links a:hover {
+            background: #545b62;
+        }
+
+        .required {
+            color: #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Tasks MCP Demo</h1>
+
+        <form id="taskForm">
+            <div class="form-group">
+                <label for="apiKey">API Key <span class="required">*</span>:</label>
+                <input type="password" id="apiKey" placeholder="Enter your Parallel API key" required>
+            </div>
+
+            <div class="form-group">
+                <label for="inputs">Task Inputs (JSON Array):</label>
+                <textarea id="inputs" placeholder='[
+  {"company_name": "OpenAI", "website": "https://openai.com"},
+  {"company_name": "Anthropic", "website": "https://anthropic.com"}
+]'>[
+  {"company_name": "OpenAI", "website": "https://openai.com"},
+  {"company_name": "Anthropic", "website": "https://anthropic.com"},
+  {"company_name": "Google", "website": "https://google.com"}
+]</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="outputDescription">Task Description:</label>
+                <input type="text" id="outputDescription"
+                    placeholder="Find the CEO name and founding year for each company"
+                    value="Find the CEO name and founding year for each company">
+            </div>
+
+            <div class="form-group">
+                <label for="processor">Processor (optional):</label>
+                <select id="processor">
+                    <option value="">Auto-select</option>
+                    <option value="lite">Lite</option>
+                    <option value="base">Base</option>
+                    <option value="core">Core</option>
+                    <option value="pro">Pro</option>
+                    <option value="ultra">Ultra</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="webhookUrl">Webhook URL (optional):</label>
+                <input type="url" id="webhookUrl" placeholder="https://your-site.com/webhook">
+            </div>
+
+            <button type="submit">Create Task Group</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('taskForm');
+        const result = document.getElementById('result');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = form.querySelector('button');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating...';
+
+            try {
+                const apiKey = document.getElementById('apiKey').value;
+                const inputs = JSON.parse(document.getElementById('inputs').value);
+                const outputDescription = document.getElementById('outputDescription').value;
+                const processor = document.getElementById('processor').value;
+                const webhookUrl = document.getElementById('webhookUrl').value;
+
+                if (!apiKey.trim()) {
+                    throw new Error('API key is required');
+                }
+
+                const payload = {
+                    inputs: inputs,
+                    output_type: "json",
+                    output_description: outputDescription
+                };
+
+                if (processor) payload.processor = processor;
+                if (webhookUrl) payload.webhook_url = webhookUrl;
+
+                showResult('Creating task group...', 'info');
+
+                const response = await fetch('/v1beta/tasks/groups', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const url = data.url;
+                    showSuccessResult(url);
+                    startPolling(url, apiKey);
+                } else {
+                    throw new Error(data.error?.message || 'Unknown error');
+                }
+
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Task Group';
+            }
+        });
+
+        function showResult(message, type) {
+            result.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+
+        function showSuccessResult(url) {
+            const taskId = url.split('/').pop();
+
+            result.innerHTML = `
+                <div class="result success">
+                    <strong>✅ Task group created successfully!</strong>
+                    
+                    <div class="url-result">${url}</div>
+                    
+                    <div class="format-links">
+                        <strong>View results:</strong>
+                        <a href="${url}.json" target="_blank">JSON</a>
+                        <a href="${url}.md" target="_blank">Markdown</a>
+                        <a href="${url}.html" target="_blank">HTML</a>
+                        <a href="${url}.sse" target="_blank">Live Stream</a>
+                    </div>
+                </div>
+                
+                <div id="polling" class="result info">
+                    <strong>📡 Monitoring progress...</strong>
+                    <div id="status"></div>
+                </div>
+            `;
+        }
+
+        async function startPolling(url, apiKey) {
+            const statusDiv = document.getElementById('status');
+            const pollingDiv = document.getElementById('polling');
+
+            if (!statusDiv || !pollingDiv) return;
+
+            try {
+                while (true) {
+                    const response = await fetch(url + '.json', {
+                        headers: {
+                            'x-api-key': apiKey
+                        }
+                    });
+                    const data = await response.json();
+
+                    const status = data.status;
+                    const completedTasks = status.task_run_status_counts.completed || 0;
+                    const totalTasks = status.num_task_runs;
+
+                    statusDiv.innerHTML = `
+                        <div>Status: ${status.is_active ? '🟡 Processing' : '✅ Completed'}</div>
+                        <div>Progress: ${completedTasks}/${totalTasks} tasks completed</div>
+                        <div>Last updated: ${new Date(status.modified_at).toLocaleTimeString()}</div>
+                    `;
+
+                    if (!status.is_active) {
+                        pollingDiv.className = 'result success';
+                        pollingDiv.querySelector('strong').textContent = '✅ All tasks completed!';
+
+                        if (data.results && data.results.length > 0) {
+                            statusDiv.innerHTML += `
+                                <div style="margin-top: 10px;">
+                                    <strong>Sample results:</strong>
+                                    <pre style="font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 5px;">${JSON.stringify(data.results.slice(0, 2), null, 2)}</pre>
+                                </div>
+                            `;
+                        }
+                        break;
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div style="color: #d63384;">Polling error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

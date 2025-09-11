@@ -39,7 +39,7 @@ type TaskGroupOutput = {
 
 `GET /{trun_id}[.(json|md|html|sse)]` - publicly shows (intermediate) result in accepted format. format can be made explicit using optional extension, but otherwise follows accept header.
 
-Make me a cloudflare worker to be hosted at https://multitask.p0web.com that creates the task group and inserts all inputs, then streams the results to a durable object unique to that task run.
+Make me a cloudflare worker to be hosted at https://tasks-mcp-demo.parallel.ai that creates the task group and inserts all inputs, then streams the results to a durable object unique to that task run.
 
 Stream pointers:
 
@@ -84,7 +84,3 @@ Context:
 - https://docs.parallel.ai/api-reference/task-api-beta/retrieve-task-group-run.md
 - https://docs.parallel.ai/api-reference/task-api-v1/retrieve-task-run-result.md
 - https://docs.parallel.ai/task-api/features/ingest-api.md
-
-Bonus:
-
-- The task run ID is 32 hex characters (https://letmeprompt.com/rules-httpsuithu-28mr600, https://letmeprompt.com/rules-httpsuithu-uq2vhc0) save to make publicly accessible assuming it's generated at random.
