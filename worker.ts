@@ -90,7 +90,7 @@ export default {
         const doInstance = env.TaskGroupDO.get(doId);
 
         // Initialize the task group in the DO
-        const doUrl = `https://tasks-mcp-demo.parallel.ai/${taskGroupId}`;
+        const doUrl = `${url.origin}/${taskGroupId}`;
         await doInstance.initialize(input, doUrl, parallelApiKey);
 
         // Return the URL immediately

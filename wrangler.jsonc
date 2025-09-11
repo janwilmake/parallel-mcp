@@ -4,6 +4,7 @@
   "main": "worker.ts",
   "account_id": "aceab98f1a2fc658ed4e20bc307fa65a",
   "compatibility_date": "2025-09-11",
+  "assets": { "directory": "./" },
   "observability": {
     "logs": { "enabled": true }
   },
