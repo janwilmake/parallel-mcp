@@ -16,7 +16,8 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 
 - ✅ initial implementation
 - ✅ make mcp work via https://github.com/janwilmake/openapi-to-mcp
-- add oauth using simplerauth
+- add oauth using simplerauth returning parallel-api-key
+- improve MCP (see [MCP.md](MCP.md))
 
 QOL
 
@@ -26,7 +27,3 @@ QOL
 - add confidence and references into HTML
 - show confidence as emoji in markdown
 - figure out how to make it loose no functionality that doesn't increase complexity: https://letmeprompt.com/rules-httpsuithu-jza7uv0
-
-# Consideration for sending notifications
-
-To send notifications, the connection needs to remain open with SSE. It's unclear if clients will do this. Also, this still doesn't give us the desired outcome of having the LLM respond to the task results after they're done. Because of this, my initial goal is to see if the current implementation can already be useful. I think it does provide value as it allows for much easier task experimentation with multiple items and multiple configurations, then viewing the results in different tabs as they come back.
