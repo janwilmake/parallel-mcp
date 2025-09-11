@@ -15,3 +15,4 @@ The task group API of Parallel is quite a lot to take in. With the Parallel Task
 - make HTML mobile-friendly
 - add confidence and references into HTML
 - show confidence as emoji in markdown
+- figure out how to make it loose no functionality that doesn't increase complexity: https://letmeprompt.com/the-task-group-api-o-qtmtmi0
