@@ -67,6 +67,8 @@ Because of this, my initial goal is to see if the current implementation can alr
 
 Nex steps:
 
+- Test if adding `/.well-known/mcp-config` works for curlmcp. If so, ask saunack to add to https://docs.parallel.ai/features/remote-mcp.
+- Add https://docs.parallel.ai/features/remote-mcp to MCP registry https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/
 - Create demo without oauth if preferred, test output quality and ease of use
   - requires with-mcp or openapi-to-mcp to support `?apiKey` (and `.well-known/mcp-config`)
 - Initial goal is to get it to work using [withMcp](https://github.com/janwilmake/with-mcp) with parallel oauth provider. This results in ability to use this within claude, chatgpt, cursor, vscode, etc etc etc and starting to add listings.
