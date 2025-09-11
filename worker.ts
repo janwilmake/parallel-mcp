@@ -6,7 +6,7 @@ export interface Env {
   TASK_GROUP_DO: DurableObjectNamespace<TaskGroupDO>;
 }
 
-const ORIGIN = "https://multitask.parallel.ai";
+const ORIGIN = "https://multitask-demo.parallel.ai";
 // Types
 interface TaskGroupInput {
   inputs: string | object[];
