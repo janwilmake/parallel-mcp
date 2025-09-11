@@ -10,6 +10,7 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 - OpenAPI JSON: https://multitask-demo.parallel.ai/openapi.json
 - Design SPEC (outdated): https://multitask-demo.parallel.ai/SPEC.md
 - Demo: https://multitask-demo.parallel.ai
+- MCP: https://mcp.openapisearch.com/multitask-demo.parallel.ai/mcp
 
 ## TODO
 

@@ -47,7 +47,7 @@
         "description": "List tools for MCP",
         "responses": {
           "200": {
-            "description": "A list of tools",
+            "description": "A list of operationIds that can be used as MCP tools",
             "content": {
               "application/json": {
                 "schema": {
