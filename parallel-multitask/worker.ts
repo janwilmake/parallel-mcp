@@ -339,17 +339,16 @@ function getFormatFromAccept(accept: string | null): string {
 export class TaskGroupDO extends DurableObject<Env> {
   sql: SqlStorage;
   env: Env;
+  state: DurableObjectState;
   private parallel: Parallel | null = null;
   private streamController: AbortController | null = null;
   private isStreaming = false;
-  private streamStartTime: number = 0;
-  private streamRestartCount: number = 0;
   private lastEventId: string | null = null;
-  private reconnectDelay = 5000; // Start with 5 seconds
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
     this.env = env;
+    this.state = state;
     this.sql = state.storage.sql;
 
     // Initialize database tables
@@ -449,8 +448,189 @@ export class TaskGroupDO extends DurableObject<Env> {
       );
     }
 
-    // Start streaming
-    this.startStreaming();
+    // Start first streaming session
+    this.scheduleStreamingSession();
+  }
+
+  private scheduleStreamingSession(): void {
+    // Schedule an alarm to start streaming immediately
+    this.state.storage.setAlarm(Date.now() + 100);
+  }
+
+  private scheduleNextStreamingSession(): void {
+    // Schedule next streaming session in 10 seconds
+    this.state.storage.setAlarm(Date.now() + 10000);
+  }
+
+  async alarm(): Promise<void> {
+    console.log(
+      `[${new Date().toISOString()}] Alarm triggered - starting streaming session`
+    );
+
+    // Check if task group is still active
+    const groupDataRaw = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "group_data")
+      .toArray()[0]?.value;
+
+    if (groupDataRaw) {
+      const groupData = JSON.parse(groupDataRaw);
+      if (
+        groupData.status &&
+        !groupData.status.is_active &&
+        groupData.status.num_task_runs > 0
+      ) {
+        console.log(
+          `[${new Date().toISOString()}] Task group is complete - not scheduling more sessions`
+        );
+        return;
+      }
+    }
+
+    try {
+      await this.runStreamingSession();
+    } catch (error) {
+      console.error(
+        `[${new Date().toISOString()}] Streaming session failed:`,
+        error
+      );
+    }
+
+    // Schedule next session if task group is still active
+    const updatedGroupDataRaw = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "group_data")
+      .toArray()[0]?.value;
+
+    if (updatedGroupDataRaw) {
+      const updatedGroupData = JSON.parse(updatedGroupDataRaw);
+      if (!updatedGroupData.status || updatedGroupData.status.is_active) {
+        console.log(
+          `[${new Date().toISOString()}] Scheduling next streaming session`
+        );
+        this.scheduleNextStreamingSession();
+      } else {
+        console.log(
+          `[${new Date().toISOString()}] Task group completed - stopping streaming`
+        );
+        await this.handleCompletion();
+      }
+    }
+  }
+
+  private async runStreamingSession(): Promise<void> {
+    const STREAM_TIMEOUT = 290000; // 4 minutes 50 seconds
+
+    this.initializeParallelClient();
+
+    if (!this.parallel) {
+      throw new Error("Parallel client not initialized");
+    }
+
+    const taskGroupId = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
+      .toArray()[0]?.value as string | undefined;
+
+    if (!taskGroupId) {
+      throw new Error("Missing taskGroupId");
+    }
+
+    // Load last event ID from storage if available
+    if (!this.lastEventId) {
+      const storedEventId = this.sql
+        .exec("SELECT value FROM stream_state WHERE key = ?", "last_event_id")
+        .toArray()[0]?.value as string | undefined;
+      this.lastEventId = storedEventId || null;
+    }
+
+    console.log(
+      `[${new Date().toISOString()}] Starting 290s streaming session for ${taskGroupId} (cursor: ${
+        this.lastEventId || "none"
+      })`
+    );
+
+    this.streamController = new AbortController();
+
+    // Set timeout for the streaming session
+    const timeoutId = setTimeout(() => {
+      console.log(
+        `[${new Date().toISOString()}] Stream timeout reached - aborting session`
+      );
+      this.streamController?.abort();
+    }, STREAM_TIMEOUT);
+    const sessionStart = Date.now();
+
+    try {
+      // Use SDK to get events stream with cursor support
+      const eventsParams =
+        //this.lastEventId
+        //  ? { last_event_id: this.lastEventId, timeout: 300 } // 5 minutes timeout (longer than our session)
+        // :
+        { timeout: 300 };
+
+      a;
+
+      console.log(`[${new Date().toISOString()}] Connected to events stream`);
+
+      let eventCount = 0;
+
+      for await (const event of eventsStream) {
+        if (this.streamController?.signal.aborted) {
+          console.log(`[${new Date().toISOString()}] Stream aborted`);
+          break;
+        }
+
+        eventCount++;
+        const elapsed = Date.now() - sessionStart;
+
+        console.log(
+          `[${new Date().toISOString()}] Event #${eventCount} (${elapsed}ms):`,
+          event.type
+        );
+
+        // Store cursor for reconnection
+        if ("event_id" in event && event.event_id) {
+          this.lastEventId = event.event_id;
+          this.sql.exec(
+            "INSERT OR REPLACE INTO stream_state (key, value) VALUES (?, ?)",
+            "last_event_id",
+            event.event_id
+          );
+        }
+
+        // Process different event types
+        if (event.type === "task_group_status") {
+          await this.updateTaskGroupStatus(event);
+        } else if (event.type === "task_run.state") {
+          await this.handleTaskRunStateEvent(event);
+        } else if (event.type === "error") {
+          console.error(
+            `[${new Date().toISOString()}] Stream error event:`,
+            event.error
+          );
+        }
+      }
+
+      const totalElapsed = Date.now() - sessionStart;
+      console.log(
+        `[${new Date().toISOString()}] Stream session ended normally after ${totalElapsed}ms, ${eventCount} events`
+      );
+    } catch (error) {
+      const totalElapsed = Date.now() - sessionStart;
+
+      if (error.name === "AbortError") {
+        console.log(
+          `[${new Date().toISOString()}] Stream session aborted after ${totalElapsed}ms (timeout)`
+        );
+      } else {
+        console.error(
+          `[${new Date().toISOString()}] Stream session error after ${totalElapsed}ms:`,
+          error.message
+        );
+        throw error;
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      this.streamController = null;
+    }
   }
 
   private getStoredApiKey(): string | null {
@@ -815,181 +995,6 @@ export class TaskGroupDO extends DurableObject<Env> {
     });
   }
 
-  private async startStreaming(): Promise<void> {
-    if (this.isStreaming) return;
-
-    this.isStreaming = true;
-    this.streamStartTime = Date.now();
-    this.streamRestartCount++;
-
-    console.log(
-      `[${new Date().toISOString()}] Starting stream attempt #${
-        this.streamRestartCount
-      } (cursor: ${this.lastEventId || "none"})`
-    );
-
-    this.streamController = new AbortController();
-
-    try {
-      await this.streamTaskGroupEvents();
-    } catch (error) {
-      const duration = Date.now() - this.streamStartTime;
-      console.log(
-        `[${new Date().toISOString()}] Stream failed after ${duration}ms:`,
-        error.message
-      );
-
-      // Always restart with cursor-based reconnection
-      this.isStreaming = false;
-      setTimeout(() => {
-        console.log(
-          `[${new Date().toISOString()}] Restarting stream in ${
-            this.reconnectDelay
-          }ms with cursor: ${this.lastEventId || "none"}`
-        );
-        this.startStreaming();
-      }, this.reconnectDelay);
-    }
-  }
-
-  private async streamTaskGroupEvents(): Promise<void> {
-    this.initializeParallelClient();
-
-    if (!this.parallel) {
-      throw new Error("Parallel client not initialized");
-    }
-
-    const taskGroupId = this.sql
-      .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
-      .toArray()[0]?.value as string | undefined;
-
-    if (!taskGroupId) {
-      throw new Error("Missing taskGroupId");
-    }
-
-    // Load last event ID from storage if available
-    if (!this.lastEventId) {
-      const storedEventId = this.sql
-        .exec("SELECT value FROM stream_state WHERE key = ?", "last_event_id")
-        .toArray()[0]?.value as string | undefined;
-      this.lastEventId = storedEventId || null;
-    }
-
-    console.log(
-      `[${new Date().toISOString()}] Connecting to events stream for ${taskGroupId}`
-    );
-
-    try {
-      // Use SDK to get events stream with cursor support
-      const eventsParams = this.lastEventId
-        ? { last_event_id: this.lastEventId, timeout: 600 } // 1 hour timeout
-        : { timeout: 600 };
-
-      const eventsStream = await this.parallel.beta.taskGroup.events(
-        taskGroupId,
-        eventsParams
-      );
-
-      console.log(`[${new Date().toISOString()}] Connected to events stream`);
-
-      // Process events from the stream
-      let lastActivity = Date.now();
-      let eventCount = 0;
-
-      for await (const event of eventsStream) {
-        if (this.streamController?.signal.aborted) {
-          console.log(`[${new Date().toISOString()}] Stream aborted`);
-          break;
-        }
-
-        lastActivity = Date.now();
-        eventCount++;
-
-        console.log(
-          `[${new Date().toISOString()}] Event #${eventCount}:`,
-          event.type,
-          event
-        );
-
-        // Store cursor for reconnection
-        if ("event_id" in event && event.event_id) {
-          this.lastEventId = event.event_id;
-          this.sql.exec(
-            "INSERT OR REPLACE INTO stream_state (key, value) VALUES (?, ?)",
-            "last_event_id",
-            event.event_id
-          );
-        }
-
-        // Process different event types
-        if (event.type === "task_group_status") {
-          await this.updateTaskGroupStatus(event);
-        } else if (event.type === "task_run.state") {
-          await this.handleTaskRunStateEvent(event);
-        } else if (event.type === "error") {
-          console.error(
-            `[${new Date().toISOString()}] Stream error event:`,
-            event.error
-          );
-        }
-
-        // Check for inactivity timeout (20 minutes)
-        if (Date.now() - lastActivity > 10 * 60 * 1000) {
-          console.log(
-            `[${new Date().toISOString()}] No activity for 20 minutes, breaking stream`
-          );
-          break;
-        }
-      }
-
-      console.log(
-        `[${new Date().toISOString()}] Stream ended normally after ${eventCount} events`
-      );
-    } catch (error) {
-      const duration = Date.now() - this.streamStartTime;
-      console.log(
-        `[${new Date().toISOString()}] Stream error after ${duration}ms:`,
-        error.message
-      );
-
-      // Enhanced error handling
-      if (error.name === "AbortError") {
-        console.log(
-          `[${new Date().toISOString()}] Stream aborted after ${duration}ms`
-        );
-        return;
-      }
-
-      if (duration > 3000000) {
-        // ~50 minutes - close to expected 1 hour limit
-        console.log(
-          `[${new Date().toISOString()}] LONG-RUNNING STREAM ended - ${duration}ms, likely hit timeout limit`
-        );
-        // Reset delay since this was likely a natural timeout
-        this.reconnectDelay = 5000;
-      } else if (duration < 30000) {
-        // Less than 30 seconds - quick failure, increase delay
-        this.reconnectDelay = Math.min(this.reconnectDelay * 1.5, 60000);
-        console.log(
-          `[${new Date().toISOString()}] Quick failure, increased delay to ${
-            this.reconnectDelay
-          }ms`
-        );
-      } else {
-        // Normal duration failure, keep current delay
-        console.log(
-          `[${new Date().toISOString()}] Normal duration failure, keeping delay at ${
-            this.reconnectDelay
-          }ms`
-        );
-      }
-
-      throw error;
-    }
-
-    console.log(`[${new Date().toISOString()}] Exiting streamTaskGroupEvents`);
-  }
-
   private async handleTaskRunStateEvent(eventData: any): Promise<void> {
     const run = eventData.run;
 
@@ -1083,17 +1088,12 @@ export class TaskGroupDO extends DurableObject<Env> {
       JSON.stringify(groupData)
     );
 
-    // Check if all tasks are complete
-    if (!status.is_active) {
-      await this.handleCompletion();
-    }
+    // The completion will be handled by the next alarm check
   }
 
   private async handleCompletion(): Promise<void> {
-    this.isStreaming = false;
-
     console.log(
-      `[${new Date().toISOString()}] Task group completed - stopping stream`
+      `[${new Date().toISOString()}] Task group completed - sending webhook`
     );
 
     // Send webhook if configured
@@ -1117,14 +1117,6 @@ export class TaskGroupDO extends DurableObject<Env> {
         console.error("Webhook error:", error);
       }
     }
-
-    // Schedule cleanup alarm (30 days)
-    await this.state.storage.setAlarm(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  }
-
-  async alarm(): Promise<void> {
-    // Clean up DO after 30 days
-    await this.state.storage.deleteAll();
   }
 }
 

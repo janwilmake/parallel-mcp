@@ -32,7 +32,10 @@ export async function parallelOauthProvider(request, kv) {
   }
 
   // OAuth Authorization Server Metadata (RFC8414)
-  if (path === "/.well-known/oauth-authorization-server") {
+  if (
+    path === "/.well-known/oauth-authorization-server" ||
+    path.startsWith("/.well-known/oauth-authorization-server/")
+  ) {
     const metadata = {
       issuer: url.origin,
       authorization_endpoint: `${url.origin}/authorize`,
@@ -54,9 +57,14 @@ export async function parallelOauthProvider(request, kv) {
   }
 
   // Protected resource metadata
-  if (path === "/.well-known/oauth-protected-resource") {
+  const protectedResourcePath = "/.well-known/oauth-protected-resource";
+  if (
+    path === protectedResourcePath ||
+    path.startsWith(protectedResourcePath + "/")
+  ) {
+    const suffix = path.slice(protectedResourcePath.length);
     const metadata = {
-      resource: url.origin,
+      resource: url.origin + suffix,
       authorization_servers: [url.origin],
       scopes_supported: ["api"],
       bearer_methods_supported: ["header"],
@@ -87,7 +95,6 @@ export async function parallelOauthProvider(request, kv) {
 
     try {
       const body = await request.json();
-
       // Validate redirect_uris is present and is an array
       if (
         !body.redirect_uris ||
@@ -133,11 +140,11 @@ export async function parallelOauthProvider(request, kv) {
       }
 
       // Ensure all redirect URIs have the same host
-      if (hostnames.size !== 1) {
+      if (hostnames.size < 1) {
         return new Response(
           JSON.stringify({
             error: "invalid_client_metadata",
-            error_description: "All redirect URIs must have the same host",
+            error_description: "Less than 1 redirect uri",
           }),
           {
             status: 400,
@@ -186,54 +193,30 @@ export async function parallelOauthProvider(request, kv) {
     }
   }
 
-  // Helper function to validate domain
-  const isValidDomain = (domain) => {
-    const domainRegex =
-      /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    return (
-      (domainRegex.test(domain) &&
-        domain.includes(".") &&
-        domain.length <= 253) ||
-      domain === "localhost"
-    );
-  };
-
   // Authorization endpoint - shows the API key input form
   if (path === "/authorize") {
-    const clientId = url.searchParams.get("client_id");
+    // const clientId = url.searchParams.get("client_id");
     const redirectUri = url.searchParams.get("redirect_uri");
     const state = url.searchParams.get("state");
     const responseType = url.searchParams.get("response_type") || "code";
 
-    if (!clientId || !redirectUri || responseType !== "code") {
+    if (!redirectUri || responseType !== "code") {
       return new Response("Invalid request parameters", {
         status: 400,
         headers: getCorsHeaders(),
       });
     }
 
-    // Validate that client_id looks like a domain
-    if (!isValidDomain(clientId)) {
-      return new Response("Invalid client_id: must be a valid domain", {
-        status: 400,
-        headers: getCorsHeaders(),
-      });
-    }
+    let redirectUrl;
 
     // Validate redirect_uri matches client_id hostname
     try {
-      const redirectUrl = new URL(redirectUri);
-      if (redirectUrl.hostname !== clientId) {
-        return new Response(
-          "Invalid redirect_uri: must be on same origin as client_id",
-          {
-            status: 400,
-            headers: getCorsHeaders(),
-          }
-        );
-      }
+      redirectUrl = new URL(redirectUri);
 
-      if (redirectUrl.protocol !== "https:" && clientId !== "localhost") {
+      if (
+        redirectUrl.protocol === "http:" &&
+        redirectUrl.hostname !== "localhost"
+      ) {
         return new Response("Invalid redirect_uri: must use HTTPS", {
           status: 400,
           headers: getCorsHeaders(),
@@ -245,6 +228,12 @@ export async function parallelOauthProvider(request, kv) {
         headers: getCorsHeaders(),
       });
     }
+
+    const clientId =
+      redirectUrl.protocol === "https:" ||
+      (redirectUrl.hostname === "localhost" && redirectUrl.protocol === "http:")
+        ? redirectUrl.host
+        : redirectUrl.protocol + redirectUrl.host;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -419,7 +408,7 @@ export async function parallelOauthProvider(request, kv) {
         
         <div class="trust-notice">
             <div class="client-info">${clientId}</div>
-            <div>Do you trust this application to access your Parallel.ai API key?</div>
+            <div>Do you trust <b>${clientId}</b> to access your Parallel.ai API key?</div>
         </div>
         
         <form id="authForm">
@@ -550,31 +539,13 @@ export async function parallelOauthProvider(request, kv) {
       const formData = await request.formData();
       const grantType = formData.get("grant_type");
       const code = formData.get("code");
-      const clientId = formData.get("client_id");
 
-      if (grantType !== "authorization_code" || !code || !clientId) {
+      if (grantType !== "authorization_code" || !code) {
         return new Response(
           JSON.stringify({
             error: "invalid_request",
             error_description:
               "Invalid grant_type, missing code, or missing client_id",
-          }),
-          {
-            status: 400,
-            headers: {
-              ...getCorsHeaders(),
-              "Content-Type": "application/json",
-            },
-          }
-        );
-      }
-
-      // Validate client_id is a valid domain
-      if (!isValidDomain(clientId)) {
-        return new Response(
-          JSON.stringify({
-            error: "invalid_client",
-            error_description: "client_id must be a valid domain",
           }),
           {
             status: 400,

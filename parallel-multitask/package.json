@@ -5,6 +5,6 @@
   "dependencies": {
     "parallel-web": "^0.1.1",
     "queryable-object": "^0.0.19",
-    "with-mcp": "^0.0.14"
+    "with-mcp": "^0.0.17"
   }
 }

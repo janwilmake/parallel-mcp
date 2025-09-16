@@ -10,8 +10,11 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TaskGroupDO"] }],
   "assets": { "directory": "./" },
+  // no supported on free
+  // "limits": { "cpu_ms": 300000 },
   "env": {
     "dev": {
+      // "limits": { "cpu_ms": 300000 },
       "routes": [],
       "kv_namespaces": [
         {
