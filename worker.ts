@@ -78,6 +78,7 @@ const fetchHandler = async (
 export default {
   fetch: withMcp(fetchHandler, openapi, {
     authEndpoint: "/me",
+    serverInfo: { name: "Parallel Multitask MCP", version: "1.0.0" },
     toolOperationIds: ["createMultitask", "getTaskGroupResultsMarkdown"],
   }),
 } satisfies ExportedHandler<Env>;

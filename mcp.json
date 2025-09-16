@@ -1,0 +1,137 @@
+[
+  {
+    "Company Name": "Anthropic",
+    "Domain Name": "anthropic.com",
+    "Description": "Creator and maintainer of MCP protocol; provides Claude AI assistant and official SDKs"
+  },
+  {
+    "Company Name": "OpenAI",
+    "Domain Name": "openai.com",
+    "Description": "Adopted MCP in March 2025 across ChatGPT desktop app and Agents SDK"
+  },
+  {
+    "Company Name": "Microsoft",
+    "Domain Name": "microsoft.com",
+    "Description": "Released native MCP support in Copilot Studio; partnered with Anthropic for C# SDK"
+  },
+  {
+    "Company Name": "Google DeepMind",
+    "Domain Name": "deepmind.google",
+    "Description": "Confirmed MCP support in upcoming Gemini models as of April 2025"
+  },
+  {
+    "Company Name": "Block (Square)",
+    "Domain Name": "block.xyz",
+    "Description": "Early adopter that integrated MCP into their internal payment systems"
+  },
+  {
+    "Company Name": "Apollo",
+    "Domain Name": "apollographql.com",
+    "Description": "Early commercial adopter integrated MCP during initial protocol launch"
+  },
+  {
+    "Company Name": "Zed",
+    "Domain Name": "zed.dev",
+    "Description": "Collaborative code editor integrating MCP for enhanced AI coding assistance"
+  },
+  {
+    "Company Name": "Replit",
+    "Domain Name": "replit.com",
+    "Description": "Online coding platform working with MCP integration for AI development tools"
+  },
+  {
+    "Company Name": "Codeium",
+    "Domain Name": "codeium.com",
+    "Description": "AI coding assistant platform enhancing capabilities with MCP protocol"
+  },
+  {
+    "Company Name": "Sourcegraph",
+    "Domain Name": "sourcegraph.com",
+    "Description": "Code intelligence and search platform adopting MCP for better context"
+  },
+  {
+    "Company Name": "Wix",
+    "Domain Name": "wix.com",
+    "Description": "Web development platform with embedded MCP servers for AI-driven tools"
+  },
+  {
+    "Company Name": "Goldman Sachs",
+    "Domain Name": "goldmansachs.com",
+    "Description": "Financial services utilizing AI models compatible with MCP protocols"
+  },
+  {
+    "Company Name": "AT&T",
+    "Domain Name": "att.com",
+    "Description": "Telecommunications company using MCP-compatible AI for business functions"
+  },
+  {
+    "Company Name": "Rapid Innovation",
+    "Domain Name": "rapidinnovation.io",
+    "Description": "Leading MCP development services company offering end-to-end implementation"
+  },
+  {
+    "Company Name": "Softude",
+    "Domain Name": "softude.com",
+    "Description": "MCP development firm focusing on structured and scalable business solutions"
+  },
+  {
+    "Company Name": "Blue Label Labs",
+    "Domain Name": "bluelabellabs.com",
+    "Description": "Design-focused MCP development company for consumer-facing applications"
+  },
+  {
+    "Company Name": "GitHub",
+    "Domain Name": "github.com",
+    "Description": "Microsoft subsidiary that joined MCP steering committee at Build 2025"
+  },
+  {
+    "Company Name": "Hugging Face",
+    "Domain Name": "huggingface.co",
+    "Description": "AI community platform supporting MCP ecosystem development"
+  },
+  {
+    "Company Name": "Supabase",
+    "Domain Name": "supabase.com",
+    "Description": "Backend-as-a-service platform providing MCP Postgres server integration"
+  },
+  {
+    "Company Name": "Pomerium",
+    "Domain Name": "pomerium.com",
+    "Description": "Zero-trust access platform providing MCP security and policy enforcement"
+  },
+  {
+    "Company Name": "Keywords AI",
+    "Domain Name": "keywordsai.co",
+    "Description": "Developer platform for LLM applications supporting MCP integration"
+  },
+  {
+    "Company Name": "AWS Labs",
+    "Domain Name": "aws.amazon.com",
+    "Description": "Amazon's innovation lab building MCP servers for AWS services"
+  },
+  {
+    "Company Name": "Sentry",
+    "Domain Name": "sentry.io",
+    "Description": "Error tracking platform with MCP integration for observability workflows"
+  },
+  {
+    "Company Name": "MongoDB",
+    "Domain Name": "mongodb.com",
+    "Description": "Database company providing MCP servers for Atlas instances"
+  },
+  {
+    "Company Name": "dbt Labs",
+    "Domain Name": "getdbt.com",
+    "Description": "Analytics engineering platform exposing semantic layer through MCP"
+  },
+  {
+    "Company Name": "Terraform",
+    "Domain Name": "terraform.io",
+    "Description": "Infrastructure-as-code platform with MCP integration for DevOps workflows"
+  },
+  {
+    "Company Name": "Cloudflare",
+    "Domain Name": "cloudflare.com",
+    "Description": "Web infrastructure company supporting MCP server deployments"
+  }
+]
