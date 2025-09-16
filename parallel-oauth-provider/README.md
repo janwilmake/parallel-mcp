@@ -7,7 +7,6 @@ This minimal OAuth provider:
    - User enters API key, it gets stored in KV with a temporary auth code
    - `/token` exchanges the auth code for the API key and deletes it from KV
 4. **Proper OAuth compliance** - Includes all the required metadata endpoints
-5. **Clean UI** - Minimal, focused design with the Parallel logo and proper styling
 
 To use it in your Cloudflare Worker:
 

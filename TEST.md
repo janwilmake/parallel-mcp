@@ -38,11 +38,3 @@ Update: I've added https://multitask-demo.parallel.ai/.well-known/oauth-protecte
 Maybe I should not care about client_id, and instead, just make client_id the first redirect-uri hostname. Then, in the consent screen we can just show the hostname from the redirect uri, since this is what needs to be trusted.
 
 **Update**: I've made this change, but can't test since I can't find how to reset the MCP DCR. Let's test with a different MCP or on a different device.
-
-# Claude Desktop
-
-TODO
-
-# Claude Code
-
-TODO
