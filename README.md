@@ -17,44 +17,13 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 - On localhost, run `wrangler dev --env dev`
 - Run `npx @modelcontextprotocol/inspector` and test `http://localhost:8787/mcp`. The oauth flow should work.
 
-## TODO
-
-GOAL: Get it to work in Claude.ai and hosted on Smithery.
-
-- ✅ initial implementation
-- ✅ make mcp work via https://github.com/janwilmake/openapi-to-mcp
-
-Next steps:
-
-- ✅ Initial goal is to get it to work using [withMcp](https://github.com/janwilmake/with-mcp) with parallel oauth provider. This results in ability to use this within claude, chatgpt, cursor, vscode, etc etc etc and starting to add listings.
-- ✅ Add oauth to viewer client
-
-OAuth
-
-- ✅ Add oauth using `simplerauth` returning `parallel-api-key`
-- ❌ Ensure kv doesn't create eventual consistency problems. If so, switch to DO.
-- ❌ It may be easier to host this at `mcp-oauth.parallel.ai` and use in conjunction with `simplerauth-client`. This way, it's just a matter of switching the oauthHost to `mcp-oauth.parallel.ai`, and can then be used from any worker.
-- Get it to work with mcp.agent-friendly.com (now having problem with cache)
-- Get it to work with `npx @modelcontextprotocol/inspector`
-
-- First usecase for this would be to have the same parallel search MCP but with oauth: mcp-with-oauth.parallel.ai. This results in parallel search MCP to be able to be submitted to all kinds of directories that require oauth.
-
-QOL
-
-- Improve HTML and streaming behavior to be fully realtime
-- Make HTML mobile-friendly
-- Add ability to see in the title whether the task result is still loading or not (Good DX)
-- Add confidence and references into HTML
-- Show confidence as emoji in markdown
-- Figure out how to make it loose no functionality that doesn't increase complexity: https://letmeprompt.com/rules-httpsuithu-jza7uv0
-
 # Parallel Tasks MCP
 
 There are 3 components to this:
 
-1. [Parallel Multitask API](https://github.com/janwilmake/parallel-multitask)
-2. [Parallel OAuth Provider](https://github.com/janwilmake/universal-mcp-oauth/tree/main/parallel-oauth-provider) with [simplerauth-client](https://github.com/janwilmake/universal-mcp-oauth/tree/main/simplerauth-client) for MCP-compliant User Authentication
-3. The MCP
+1. [Parallel Multitask API](https://github.com/janwilmake/parallel-multitask/tree/main/parallel-multitask)
+2. [Parallel OAuth Provider](https://github.com/janwilmake/parallel-multitask/tree/main/parallel-oauth-provider) for MCP-compliant User Authentication
+3. The MCP uses https://github.com/janwilmake/with-mcp atop the openapi
 
 MCP context:
 
