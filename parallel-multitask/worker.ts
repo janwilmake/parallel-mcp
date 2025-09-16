@@ -691,7 +691,6 @@ export class TaskGroupDO extends DurableObject<Env> {
         });
     }
   }
-
   private async handleSSE(request: Request): Promise<Response> {
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
@@ -726,6 +725,8 @@ export class TaskGroupDO extends DurableObject<Env> {
 
     // Store current state to detect changes
     let lastRunStates = new Map();
+    let lastGroupStatus = initialData.status;
+
     for (const run of initialData.runs) {
       lastRunStates.set(run.run_id, {
         status: run.status,
@@ -734,10 +735,25 @@ export class TaskGroupDO extends DurableObject<Env> {
       });
     }
 
-    // Keep connection alive and send updates for individual run changes
+    // Keep connection alive and send updates
     const updateInterval = setInterval(async () => {
       try {
         const currentData = await this.getData(requestApiKey);
+
+        // Check for group status changes
+        if (
+          JSON.stringify(lastGroupStatus) !== JSON.stringify(currentData.status)
+        ) {
+          await writer.write(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: "group_status_update",
+                status: currentData.status,
+              })}\n\n`
+            )
+          );
+          lastGroupStatus = currentData.status;
+        }
 
         // Check for run updates
         for (const run of currentData.runs) {
@@ -810,7 +826,11 @@ export class TaskGroupDO extends DurableObject<Env> {
     this.streamController = new AbortController();
 
     try {
-      await this.streamTaskGroupData();
+      // Start both streams concurrently
+      await Promise.all([
+        this.streamTaskGroupRuns(),
+        this.streamTaskGroupEvents(),
+      ]);
     } catch (error) {
       console.error("Streaming error:", error);
       // Retry after delay
@@ -821,7 +841,7 @@ export class TaskGroupDO extends DurableObject<Env> {
     }
   }
 
-  private async streamTaskGroupData(): Promise<void> {
+  private async streamTaskGroupRuns(): Promise<void> {
     const apiKey = this.sql
       .exec("SELECT value FROM details WHERE key = ?", "api_key")
       .toArray()[0]?.value as string | undefined;
@@ -841,49 +861,117 @@ export class TaskGroupDO extends DurableObject<Env> {
         });
 
         if (!response.ok) {
-          throw new Error(`Stream request failed: ${response.statusText}`);
+          throw new Error(`Runs stream request failed: ${response.statusText}`);
         }
 
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error("No response body");
-
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += new TextDecoder().decode(value);
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const eventData = JSON.parse(line.slice(6));
-                if (eventData.type === "task_run.state") {
-                  await this.updateRun(eventData);
-                }
-              } catch (error) {
-                console.error("Error parsing event data:", error);
-              }
-            }
+        await this.processEventStream(response, (eventData) => {
+          if (eventData.type === "task_run.state") {
+            return this.updateRun(eventData);
           }
-        }
+        });
 
-        // Check if all tasks are complete
-        const activeRuns = this.sql
-          .exec("SELECT COUNT(*) as count FROM runs WHERE is_active = 1")
-          .toArray()[0];
-        if (activeRuns?.count === 0) {
-          await this.handleCompletion();
-          break;
-        }
+        break; // Stream ended normally
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error("Stream error:", error);
+          console.error("Runs stream error:", error);
           await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }
+    }
+  }
+
+  private async streamTaskGroupEvents(): Promise<void> {
+    const apiKey = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "api_key")
+      .toArray()[0]?.value as string | undefined;
+    const taskGroupId = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
+      .toArray()[0]?.value as string | undefined;
+
+    if (!apiKey || !taskGroupId) return;
+
+    const eventsUrl = `https://api.parallel.ai/v1beta/tasks/groups/${taskGroupId}/events`;
+
+    while (this.isStreaming && !this.streamController?.signal.aborted) {
+      try {
+        const response = await fetch(eventsUrl, {
+          headers: { "x-api-key": apiKey },
+          signal: this.streamController?.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Events stream request failed: ${response.statusText}`
+          );
+        }
+
+        await this.processEventStream(response, (eventData) => {
+          if (eventData.type === "task_group_status") {
+            return this.updateTaskGroupStatus(eventData);
+          } else if (eventData.type === "task_run.state") {
+            return this.updateRun(eventData);
+          }
+        });
+
+        break; // Stream ended normally
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error("Events stream error:", error);
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+      }
+    }
+  }
+
+  private async processEventStream(
+    response: Response,
+    eventHandler: (eventData: any) => Promise<void> | void
+  ): Promise<void> {
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("No response body");
+
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += new TextDecoder().decode(value);
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const eventData = JSON.parse(line.slice(6));
+            await eventHandler(eventData);
+          } catch (error) {
+            console.error("Error parsing event data:", error);
+          }
+        }
+      }
+    }
+  }
+
+  private async updateTaskGroupStatus(eventData: any): Promise<void> {
+    const status = eventData.status;
+
+    // Update the stored group data with new status
+    const groupDataRaw = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "group_data")
+      .toArray()[0]?.value as string | undefined;
+
+    let groupData = groupDataRaw ? JSON.parse(groupDataRaw) : {};
+    groupData.status = status;
+
+    this.sql.exec(
+      "INSERT OR REPLACE INTO details (key, value) VALUES (?, ?)",
+      "group_data",
+      JSON.stringify(groupData)
+    );
+
+    // Check if all tasks are complete
+    if (!status.is_active) {
+      await this.handleCompletion();
     }
   }
 
@@ -989,6 +1077,11 @@ function formatAsMarkdown(data: any): string {
         : result.status === "failed"
         ? "❌"
         : "🟡";
+    const status =
+      result.status === "failed"
+        ? `failed${result.error?.message ? `- ${result.error.message}` : ""}`
+        : result.status;
+
     const values = properties.map((prop) => {
       const value = result[prop];
       if (value === undefined || value === null) return "";
@@ -998,7 +1091,7 @@ function formatAsMarkdown(data: any): string {
       return valueStr.slice(0, 50) + (valueStr.length > 50 ? "..." : "");
     });
 
-    md += `| ${statusEmoji} ${result.status} | ${values.join(" | ")} |\n`;
+    md += `| ${statusEmoji} ${status} | ${values.join(" | ")} |\n`;
   }
 
   return md;
