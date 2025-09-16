@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { DurableObject } from "cloudflare:workers";
 import { Queryable, studioMiddleware } from "queryable-object";
-import { parallelOauthProvider } from "./parallel-oauth-provider";
+import { parallelOauthProvider } from "../parallel-oauth-provider";
 import { withMcp } from "with-mcp";
 
 //@ts-ignore

@@ -1,8 +1,9 @@
 {
   "name": "parallel-oauth-provider",
-  "main": "index.ts",
+  "main": "index.js",
   "files": [
-    "index.ts"
+    "index.js",
+    "README.md"
   ],
-  "version": "0.0.9"
+  "version": "0.0.10"
 }
