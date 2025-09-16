@@ -102,7 +102,7 @@
                   },
                   "output_schema": {
                     "type": "object",
-                    "description": "JSON schema for structured output (only used when output_type is 'json')",
+                    "description": "JSON schema for structured output (only used when output_type is 'json'). Please note that things like minimumItems or format aren't supported",
                     "example": {
                       "type": "object",
                       "properties": {

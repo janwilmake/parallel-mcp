@@ -2,8 +2,11 @@
 
 - ✅ For failed tasks, we need the reason in the markdown!
 - ✅ Check how streaming works. Ideally we just want to stream the task group and fetch immediately when a result is in.
-- Ensure total tasks and status in markdown are accurate
-- Show confidence as emoji in markdown
+- ✅ Ensure total tasks and status in markdown are accurate
+- ✅ improve cookie setting
+- ✅ fix stream bug
+- Show confidence as emoji in markdown (if present)
+- Show entire result in each column with newlines being enters to maintain markdown table
 - Figure out how to make it loose no functionality that doesn't increase complexity: https://letmeprompt.com/rules-httpsuithu-jza7uv0
 
 # Improving HTML
