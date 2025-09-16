@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Parallel.ai Task Groups</title>
+    <title>Parallel Tasks MCP</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://assets.p0web.com/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2"
         crossorigin>
@@ -31,8 +31,23 @@
 <body class="min-h-screen p-8">
     <div class="max-w-4xl mx-auto">
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold mb-2">Parallel.ai Task Groups</h1>
+            <h1 class="text-4xl font-bold mb-2">Parallel Tasks</h1>
             <p class="text-gray-600">Batch process tasks at scale</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-4">
+            <button id="openVscode"
+                class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+                Open in VS Code
+            </button>
+            <button id="openCursor"
+                class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors">
+                Open in Cursor
+            </button>
+            <button id="copyMcpUrl"
+                class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors">
+                Copy MCP URL
+            </button>
         </div>
 
         <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
@@ -222,6 +237,44 @@
 
             } catch (error) {
                 alert('Error: ' + error.message);
+            }
+        });
+
+        // Add these event listeners after the existing ones
+        document.getElementById('openVscode').addEventListener('click', () => {
+            const mcpUrl = 'https://multitask-demo.parallel.ai/mcp';
+            const deeplink = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({
+                "name": "Parallel Tasks",
+                "gallery": false,
+                "url": mcpUrl
+            }))}`;
+            window.open(deeplink, '_blank');
+        });
+
+        document.getElementById('openCursor').addEventListener('click', () => {
+            const mcpUrl = 'https://multitask-demo.parallel.ai/mcp';
+            const config = btoa(JSON.stringify({ "url": mcpUrl }));
+            const deeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=Parallel%20Tasks&config=${config}`;
+            window.open(deeplink, '_blank');
+        });
+
+        document.getElementById('copyMcpUrl').addEventListener('click', async () => {
+            const mcpUrl = 'https://multitask-demo.parallel.ai/mcp';
+            try {
+                await navigator.clipboard.writeText(mcpUrl);
+                // Temporarily change button text to show success
+                const button = document.getElementById('copyMcpUrl');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+                button.classList.add('bg-green-600', 'hover:bg-green-700');
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+                }, 2000);
+            } catch (err) {
+                alert('Failed to copy URL to clipboard');
             }
         });
     </script>

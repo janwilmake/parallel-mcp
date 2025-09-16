@@ -41,4 +41,8 @@ Maybe I should not care about client_id, and instead, just make client_id the fi
 
 # Claude Desktop
 
+TODO
+
 # Claude Code
+
+TODO
