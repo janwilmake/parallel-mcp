@@ -1,10 +1,12 @@
 /// <reference types="@cloudflare/workers-types" />
 import { DurableObject } from "cloudflare:workers";
 import { Queryable, studioMiddleware } from "queryable-object";
-import { parallelOauthProvider } from "parallel-oauth-provider";
+import { parallelOauthProvider } from "./parallel-oauth-provider";
 import { withMcp } from "with-mcp";
+
 //@ts-ignore
 import openapi from "./openapi.json";
+
 export interface Env {
   OAUTH_KV: KVNamespace;
   ADMIN_SECRET: string;
@@ -36,6 +38,11 @@ const fetchHandler = async (
     return new Response(await getIndexHTML(), {
       headers: { "content-type": "text/html" },
     });
+  }
+
+  // Handle OAuth callback
+  if (url.pathname === "/callback" && request.method === "GET") {
+    return handleOauthCallback(request, env);
   }
 
   // Handle multitask creation
@@ -71,14 +78,71 @@ const fetchHandler = async (
 export default {
   fetch: withMcp(fetchHandler, openapi, {
     authEndpoint: "/me",
-    toolOperationIds: ["createMultitask"],
+    toolOperationIds: ["createMultitask", "getTaskGroupResultsMarkdown"],
   }),
 } satisfies ExportedHandler<Env>;
 
+async function handleOauthCallback(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const redirectTo = url.searchParams.get("redirect_to");
+
+  if (!code) {
+    return new Response("Missing authorization code", { status: 400 });
+  }
+
+  try {
+    // Exchange code for access token
+    const req = new Request(`${url.origin}/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code,
+        client_id: url.hostname,
+      }),
+    });
+
+    const tokenResponse = await parallelOauthProvider(req, env.OAUTH_KV);
+
+    if (!tokenResponse.ok) {
+      const fail = await tokenResponse.text();
+      throw new Error(
+        "Token exchange failed: status = " + tokenResponse.status + ": " + fail
+      );
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Set cookie and redirect
+    const response = new Response("", {
+      status: 302,
+      headers: {
+        Location: redirectTo || "/",
+        "Set-Cookie": `access_token=${accessToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000`, // 30 days
+      },
+    });
+
+    return response;
+  } catch (error) {
+    console.error("OAuth callback error:", error);
+    return new Response("OAuth callback failed", { status: 500 });
+  }
+}
+
 async function handleMultitask(request: Request, env: Env): Promise<Response> {
-  const apiKey = request.headers.get("x-api-key");
+  const apiKey = getApiKeyFromRequest(request);
   if (!apiKey) {
-    return new Response("Missing x-api-key header", { status: 401 });
+    return new Response("Missing x-api-key or Authorization header", {
+      status: 401,
+    });
   }
 
   const body: TaskGroupInput = await request.json();
@@ -116,11 +180,20 @@ async function handleMultitask(request: Request, env: Env): Promise<Response> {
     // Process inputs
     let inputs: object[] = [];
     if (typeof body.inputs === "string") {
-      const inputsResponse = await fetch(body.inputs);
-      if (!inputsResponse.ok) {
-        throw new Error("Failed to fetch inputs from URL");
+      try {
+        inputs = JSON.parse(body.inputs);
+
+        if (!Array.isArray(inputs)) {
+          throw new Error("No array");
+        }
+      } catch (e) {
+        const url = new URL(body.inputs);
+        const inputsResponse = await fetch(body.inputs);
+        if (!inputsResponse.ok) {
+          throw new Error("Failed to fetch inputs from URL");
+        }
+        inputs = await inputsResponse.json();
       }
-      inputs = await inputsResponse.json();
     } else {
       inputs = body.inputs;
     }
@@ -202,10 +275,7 @@ async function handleMultitask(request: Request, env: Env): Promise<Response> {
     }
 
     // Create task run inputs
-    const runInputs = inputs.map((input) => ({
-      input: input,
-      processor: processor,
-    }));
+    const runInputs = inputs.map((input) => ({ input, processor }));
 
     // Add runs to group in batches
     const batchSize = 500;
@@ -258,6 +328,32 @@ async function handleMultitask(request: Request, env: Env): Promise<Response> {
     console.error("Error in handleMultitask:", error);
     return new Response(`Error: ${error.message}`, { status: 500 });
   }
+}
+
+function getApiKeyFromRequest(request: Request): string | null {
+  // Try x-api-key header first
+  let apiKey = request.headers.get("x-api-key");
+  if (apiKey) return apiKey;
+
+  // Try Authorization header
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.slice("Bearer ".length);
+  }
+
+  // Try access_token cookie
+  const cookieHeader = request.headers.get("Cookie");
+  if (cookieHeader) {
+    const cookies = cookieHeader.split(";").map((c) => c.trim());
+    const accessTokenCookie = cookies.find((c) =>
+      c.startsWith("access_token=")
+    );
+    if (accessTokenCookie) {
+      return accessTokenCookie.split("=")[1];
+    }
+  }
+
+  return null;
 }
 
 function getFormatFromAccept(accept: string | null): string {
@@ -372,7 +468,7 @@ export class TaskGroupDO extends DurableObject<Env> {
     this.startStreaming();
   }
 
-  async getData(): Promise<any> {
+  async getData(requestApiKey?: string): Promise<any> {
     const taskGroupId = this.sql
       .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
       .toArray()[0]?.value;
@@ -380,6 +476,17 @@ export class TaskGroupDO extends DurableObject<Env> {
       .exec("SELECT value FROM details WHERE key = ?", "group_data")
       .toArray()[0]?.value;
     const groupData = groupDataRaw ? JSON.parse(groupDataRaw) : {};
+    const storedApiKey = this.sql
+      .exec("SELECT value FROM details WHERE key = ?", "api_key")
+      .toArray()[0]?.value;
+
+    // Check if the requesting API key matches the one that created the task group
+    if (storedApiKey && requestApiKey !== storedApiKey) {
+      return {
+        unauthorized: true,
+        taskGroupId,
+      };
+    }
 
     const runs = this.sql
       .exec("SELECT * FROM runs ORDER BY input_index")
@@ -507,7 +614,56 @@ export class TaskGroupDO extends DurableObject<Env> {
 
     const format =
       pathMatch[2] || getFormatFromAccept(request.headers.get("accept"));
-    const data = await this.getData();
+
+    // Get API key from request
+    const requestApiKey = getApiKeyFromRequest(request);
+    const data = await this.getData(requestApiKey);
+
+    // Check if unauthorized
+    if (data.unauthorized) {
+      const currentUrl = encodeURIComponent(request.url);
+      const redirect_uri = encodeURIComponent(
+        `${url.origin}/callback?redirect_to=${currentUrl}`
+      );
+      const authUrl = `${url.origin}/authorize?client_id=${url.hostname}&redirect_uri=${redirect_uri}&response_type=code`;
+
+      const unauthorizedHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Authorization Required</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://assets.p0web.com/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face {
+      font-family: 'FT System Mono';
+      src: url('https://assets.p0web.com/FTSystemMono-Regular.woff2') format('woff2');
+    }
+    body { font-family: 'FT System Mono', monospace; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-8">
+  <div class="max-w-md mx-auto text-center">
+    <div class="bg-white rounded-lg shadow-lg p-8">
+      <div class="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+        <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold mb-4">Authorization Required</h1>
+      <p class="text-gray-600 mb-6">This task group was created with a different API key. Please authorize to view the results.</p>
+      <a href="${authUrl}" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors">
+        Authorize Access
+      </a>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      return new Response(unauthorizedHtml, {
+        status: 401,
+        headers: { "content-type": "text/html" },
+      });
+    }
 
     switch (format) {
       case "json":
@@ -541,15 +697,35 @@ export class TaskGroupDO extends DurableObject<Env> {
 
     const encoder = new TextEncoder();
 
+    // Get API key and check authorization first
+    const requestApiKey = getApiKeyFromRequest(request);
+    const initialData = await this.getData(requestApiKey);
+
+    if (initialData.unauthorized) {
+      await writer.write(
+        encoder.encode(`data: ${JSON.stringify({ type: "unauthorized" })}\n\n`)
+      );
+      await writer.close();
+      return new Response(readable, {
+        headers: {
+          "content-type": "text/event-stream",
+          "cache-control": "no-cache",
+          connection: "keep-alive",
+          "access-control-allow-origin": "*",
+        },
+      });
+    }
+
     // Send initial data
-    const data = await this.getData();
     await writer.write(
-      encoder.encode(`data: ${JSON.stringify({ type: "initial", data })}\n\n`)
+      encoder.encode(
+        `data: ${JSON.stringify({ type: "initial", data: initialData })}\n\n`
+      )
     );
 
     // Store current state to detect changes
     let lastRunStates = new Map();
-    for (const run of data.runs) {
+    for (const run of initialData.runs) {
       lastRunStates.set(run.run_id, {
         status: run.status,
         output: run.output,
@@ -560,7 +736,7 @@ export class TaskGroupDO extends DurableObject<Env> {
     // Keep connection alive and send updates for individual run changes
     const updateInterval = setInterval(async () => {
       try {
-        const currentData = await this.getData();
+        const currentData = await this.getData(requestApiKey);
 
         // Check for run updates
         for (const run of currentData.runs) {
@@ -647,10 +823,10 @@ export class TaskGroupDO extends DurableObject<Env> {
   private async streamTaskGroupData(): Promise<void> {
     const apiKey = this.sql
       .exec("SELECT value FROM details WHERE key = ?", "api_key")
-      .toArray()[0]?.value;
+      .toArray()[0]?.value as string | undefined;
     const taskGroupId = this.sql
       .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
-      .toArray()[0]?.value;
+      .toArray()[0]?.value as string | undefined;
 
     if (!apiKey || !taskGroupId) return;
 
@@ -746,10 +922,10 @@ export class TaskGroupDO extends DurableObject<Env> {
     // Send webhook if configured
     const webhookUrl = this.sql
       .exec("SELECT value FROM details WHERE key = ?", "webhook_url")
-      .toArray()[0]?.value;
+      .toArray()[0]?.value as string | undefined;
     const taskGroupId = this.sql
       .exec("SELECT value FROM details WHERE key = ?", "taskgroup_id")
-      .toArray()[0]?.value;
+      .toArray()[0]?.value as string | undefined;
 
     if (webhookUrl && taskGroupId) {
       try {
@@ -942,7 +1118,13 @@ function formatAsHTML(data: any): string {
     eventSource.onmessage = function(event) {
       const message = JSON.parse(event.data);
       
-      if (message.type === 'run_update') {
+      if (message.type === 'unauthorized') {
+        // Redirect to auth page
+        const currentUrl = encodeURIComponent(window.location.href);
+        const redirect_uri = encodeURIComponent(\`\${window.location.origin}/callback?redirect_to=\${encodeURIComponent(currentUrl)}\`);
+        const authUrl = \`\${window.location.origin}/authorize?client_id=\${window.location.hostname}&redirect_uri=\${redirect_uri}&response_type=code\`;
+        window.location.href = authUrl;
+      } else if (message.type === 'run_update') {
         updateRunRow(message.run, message.result);
       } else if (message.type === 'complete') {
         document.getElementById('taskGroupStatus').textContent = 'Complete';

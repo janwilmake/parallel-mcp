@@ -1,8 +1,8 @@
 # Parallel Multitask API
 
-The task group API of Parallel is quite a lot to take in. With the Parallel Tasks MCP, the goal is to make the Task Group API as accessible as possible through a simplified 'multitask api', basically turning a task group APIs into a single API call.
+The task group API of Parallel is quite a lot to take in. With the Parallel Multitask API, the goal is to make the Task Group API as accessible as possible through a simplified 'multitask api', basically turning a task group APIs into a single API call.
 
-This simplification is designed to allow doing 80% of what's possible in a minimal API. For more low-level control, see https://docs.parallel.ai/
+This simplification is designed to allow doing 80% of what's possible in a minimal API that allows a simple minimal interface to the entire workflow of the task group API suite. This type of minimal interface is ideal for use with MCP as also [advocated by Vercel](https://vercel.com/blog/the-second-wave-of-mcp-building-for-llms-not-developers#performance-improvements-with-workflow-tools), but it's also great for making it easier to build powerful apps on top of the Task Group API. For more low-level control, see https://docs.parallel.ai/
 
 ![task-group-to-url](design.drawio.png)
 
@@ -12,14 +12,27 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 - Demo: https://multitask-demo.parallel.ai
 - MCP: https://mcp.openapisearch.com/multitask-demo.parallel.ai/mcp or https://multitask-demo.parallel.ai/mcp
 
+# How to test MCP locally
+
+- On localhost, run `wrangler dev --env dev`
+- Run `npx @modelcontextprotocol/inspector` and test `http://localhost:8787/mcp`. The oauth flow should work.
+
 ## TODO
+
+GOAL: Get it to work in Claude.ai and hosted on Smithery.
 
 - ✅ initial implementation
 - ✅ make mcp work via https://github.com/janwilmake/openapi-to-mcp
-- add oauth using `simplerauth` returning `parallel-api-key`
+
+Next steps:
+
+- Initial goal is to get it to work using [withMcp](https://github.com/janwilmake/with-mcp) with parallel oauth provider. This results in ability to use this within claude, chatgpt, cursor, vscode, etc etc etc and starting to add listings.
+- Use same oauth provider
+- First usecase for this would be to have the same parallel search MCP but with oauth: mcp-with-oauth.parallel.ai. This results in parallel search MCP to be able to be submitted to all kinds of directories that require oauth.
 
 OAuth
 
+- Add oauth using `simplerauth` returning `parallel-api-key`
 - Ensure kv doesn't create eventual consistency problems. If so, switch to DO.
 - It may be easier to host this at `mcp-oauth.parallel.ai` and use in conjunction with `simplerauth-client`. This way, it's just a matter of switching the oauthHost to `mcp-oauth.parallel.ai`, and can then be used from any worker.
 - Get it to work with mcp.agent-friendly.com (now having problem with cache)
@@ -27,12 +40,12 @@ OAuth
 
 QOL
 
-- improve HTML and streaming behavior to be fully realtime
-- make HTML mobile-friendly
-- add ability to see in the title whether the task result is still loading or not (Good DX)
-- add confidence and references into HTML
-- show confidence as emoji in markdown
-- figure out how to make it loose no functionality that doesn't increase complexity: https://letmeprompt.com/rules-httpsuithu-jza7uv0
+- Improve HTML and streaming behavior to be fully realtime
+- Make HTML mobile-friendly
+- Add ability to see in the title whether the task result is still loading or not (Good DX)
+- Add confidence and references into HTML
+- Show confidence as emoji in markdown
+- Figure out how to make it loose no functionality that doesn't increase complexity: https://letmeprompt.com/rules-httpsuithu-jza7uv0
 
 # Parallel Tasks MCP
 
@@ -65,11 +78,9 @@ To send notifications, the connection needs to remain open with SSE. It's unclea
 
 Because of this, my initial goal is to see if the current implementation can already be useful without notification. I think it does provide value as it allows for much easier task experimentation with multiple items and multiple configurations, then viewing the results in different tabs as they come back.
 
-Nex steps:
+Friday if no oauth yet:
 
-- Test if adding `/.well-known/mcp-config` works for curlmcp. If so, ask saunack to add to https://docs.parallel.ai/features/remote-mcp.
-- Add https://docs.parallel.ai/features/remote-mcp to MCP registry https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/
 - Create demo without oauth if preferred, test output quality and ease of use
   - requires with-mcp or openapi-to-mcp to support `?apiKey` (and `.well-known/mcp-config`)
-- Initial goal is to get it to work using [withMcp](https://github.com/janwilmake/with-mcp) with parallel oauth provider. This results in ability to use this within claude, chatgpt, cursor, vscode, etc etc etc and starting to add listings.
-- Use same oauth provider
+- Test if adding `/.well-known/mcp-config` works for curlmcp. If so, ask saunack to add to https://docs.parallel.ai/features/remote-mcp.
+- Add https://docs.parallel.ai/features/remote-mcp to MCP registry https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/

@@ -4,3 +4,4 @@ node_modules
 package-lock.json
 .wrangler
 .DS_Store
+parallel-oauth-provider

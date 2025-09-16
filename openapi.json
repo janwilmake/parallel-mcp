@@ -64,6 +64,7 @@
                 "required": ["inputs", "output_type"],
                 "properties": {
                   "inputs": {
+                    "description": "Either a JSON array of input objects, or a URL that returns a JSON array of input objects",
                     "oneOf": [
                       {
                         "type": "string",

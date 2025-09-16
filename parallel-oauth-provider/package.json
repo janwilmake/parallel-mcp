@@ -1,0 +1,8 @@
+{
+  "name": "parallel-oauth-provider",
+  "main": "index.ts",
+  "files": [
+    "index.ts"
+  ],
+  "version": "0.0.9"
+}
