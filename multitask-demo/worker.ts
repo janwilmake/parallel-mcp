@@ -1,16 +1,10 @@
 /// <reference types="@cloudflare/workers-types" />
-import { parallelOauthProvider } from "../parallel-oauth-provider";
 import { withMcp } from "with-mcp";
 import Parallel from "parallel-web";
 
 //@ts-ignore
 import openapi from "./openapi.json";
 
-export interface Env {
-  OAUTH_KV: KVNamespace;
-}
-
-// Types
 interface TaskGroupInput {
   inputs: string | { [key: string]: unknown }[];
   webhook_url?: string;
@@ -20,23 +14,41 @@ interface TaskGroupInput {
   output_schema?: any;
 }
 
-const fetchHandler = async (
-  request: Request,
-  env: Env,
-  ctx: ExecutionContext
-): Promise<Response> => {
-  const url = new URL(request.url);
-  const oauthResponse = await parallelOauthProvider(request, env.OAUTH_KV);
-  if (oauthResponse) return oauthResponse;
+// Add PKCE helper functions
+function generateCodeVerifier(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
 
-  // Handle OAuth callback
+async function generateCodeChallenge(verifier: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
+
+function generateState(): string {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+const fetchHandler = async (request: Request): Promise<Response> => {
+  const url = new URL(request.url);
+
+  // Handle OAuth callback from parallel.simplerauth.com
   if (url.pathname === "/callback" && request.method === "GET") {
-    return handleOauthCallback(request, env);
+    return handleOauthCallback(request);
   }
 
   // Handle multitask creation
   if (url.pathname === "/v1beta/tasks/multitask" && request.method === "POST") {
-    return handleMultitask(request, env);
+    return handleMultitask(request);
   }
 
   // Handle task group results
@@ -60,12 +72,9 @@ export default {
     serverInfo: { name: "Parallel Multitask MCP", version: "1.0.0" },
     toolOperationIds: ["createMultitask", "getTaskGroupResultsMarkdown"],
   }),
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler;
 
-async function handleOauthCallback(
-  request: Request,
-  env: Env
-): Promise<Response> {
+async function handleOauthCallback(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -75,21 +84,38 @@ async function handleOauthCallback(
     return new Response("Missing authorization code", { status: 400 });
   }
 
-  try {
-    // Exchange code for access token
-    const req = new Request(`${url.origin}/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code: code,
-        client_id: url.hostname,
-      }),
-    });
+  // Verify state parameter from cookie
+  const cookieHeader = request.headers.get("Cookie");
+  const cookies = parseCookies(cookieHeader);
+  const storedState = cookies["oauth_state"];
+  const codeVerifier = cookies["code_verifier"];
 
-    const tokenResponse = await parallelOauthProvider(req, env.OAUTH_KV);
+  if (!storedState || state !== storedState) {
+    return new Response("Invalid state parameter", { status: 400 });
+  }
+
+  if (!codeVerifier) {
+    return new Response("Missing code verifier", { status: 400 });
+  }
+
+  try {
+    // Exchange code for access token with external OAuth provider
+    const tokenResponse = await fetch(
+      "https://parallel.simplerauth.com/token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code: code,
+          client_id: url.hostname,
+          redirect_uri: `${url.origin}/callback`,
+          code_verifier: codeVerifier,
+        }),
+      }
+    );
 
     if (!tokenResponse.ok) {
       const fail = await tokenResponse.text();
@@ -101,23 +127,147 @@ async function handleOauthCallback(
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
     const securePart = url.hostname === "localhost" ? "" : "Secure; ";
-    // Set cookie and redirect
-    const response = new Response(null, {
-      status: 302,
-      headers: {
-        Location: redirectTo || "/",
-        "Set-Cookie": `access_token=${accessToken}; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=2592000`, // 30 days
-      },
-    });
 
-    return response;
+    // Clear OAuth state cookies and set access token cookie
+    const clearStateCookie = `oauth_state=; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=0`;
+    const clearVerifierCookie = `code_verifier=; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=0`;
+    const accessTokenCookie = `access_token=${accessToken}; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=2592000`; // 30 days
+
+    const headers = new Headers({
+      Location: redirectTo || "/",
+    });
+    headers.append("Set-Cookie", clearStateCookie);
+    headers.append("Set-Cookie", clearVerifierCookie);
+    headers.append("Set-Cookie", accessTokenCookie);
+
+    return new Response(null, { status: 302, headers });
   } catch (error) {
     console.error("OAuth callback error:", error);
     return new Response("OAuth callback failed", { status: 500 });
   }
 }
 
-async function handleMultitask(request: Request, env: Env): Promise<Response> {
+function parseCookies(cookieHeader: string | null): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [name, ...rest] = cookie.trim().split("=");
+      if (name && rest.length > 0) {
+        cookies[name] = decodeURIComponent(rest.join("="));
+      }
+    });
+  }
+  return cookies;
+}
+
+async function handleTaskGroupResults(
+  request: Request,
+  taskGroupId: string,
+  format: string
+): Promise<Response> {
+  const apiKey = getApiKeyFromRequest(request);
+  if (!apiKey) {
+    const url = new URL(request.url);
+
+    // Generate PKCE parameters for OAuth flow
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    const state = generateState();
+
+    // Store OAuth state and code verifier in cookies
+    const securePart = url.hostname === "localhost" ? "" : "Secure; ";
+    const stateCookie = `oauth_state=${state}; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=600`; // 10 minutes
+    const verifierCookie = `code_verifier=${codeVerifier}; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=600`; // 10 minutes
+
+    const currentUrl = encodeURIComponent(request.url);
+    const redirectUri = encodeURIComponent(
+      `${url.origin}/callback?redirect_to=${currentUrl}`
+    );
+
+    // Build authorization URL for external OAuth provider
+    const authUrl = new URL("https://parallel.simplerauth.com/authorize");
+    authUrl.searchParams.set("client_id", url.hostname);
+    authUrl.searchParams.set(
+      "redirect_uri",
+      `${url.origin}/callback?redirect_to=${currentUrl}`
+    );
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("state", state);
+    authUrl.searchParams.set("scope", "api");
+    authUrl.searchParams.set("code_challenge", codeChallenge);
+    authUrl.searchParams.set("code_challenge_method", "S256");
+
+    const unauthorizedHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Authorization Required</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://assets.p0web.com/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face {
+      font-family: 'FT System Mono';
+      src: url('https://assets.p0web.com/FTSystemMono-Regular.woff2') format('woff2');
+    }
+    body { font-family: 'FT System Mono', monospace; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-8">
+  <div class="max-w-md mx-auto text-center">
+    <div class="bg-white rounded-lg shadow-lg p-8">
+      <div class="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+        <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold mb-4">Authorization Required</h1>
+      <p class="text-gray-600 mb-6">Please authorize to view the task group results.</p>
+      <a href="${authUrl.toString()}" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors">
+        Authorize Access
+      </a>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const headers = new Headers({
+      "content-type": "text/html",
+    });
+    headers.append("Set-Cookie", stateCookie);
+    headers.append("Set-Cookie", verifierCookie);
+    return new Response(unauthorizedHtml, { status: 401, headers });
+  }
+
+  try {
+    const data = await getTaskGroupData(apiKey, taskGroupId);
+
+    switch (format) {
+      case "json":
+        return new Response(JSON.stringify(data, null, 2), {
+          headers: { "content-type": "application/json;charset=utf8" },
+        });
+
+      case "md":
+        return new Response(formatAsMarkdown(data), {
+          headers: { "content-type": "text/markdown;charset=utf8" },
+        });
+
+      case "html":
+        return new Response(formatAsHTML(data), {
+          headers: { "content-type": "text/html;charset=utf8" },
+        });
+
+      default:
+        return new Response(JSON.stringify(data, null, 2), {
+          headers: { "content-type": "application/json;charset=utf8" },
+        });
+    }
+  } catch (error) {
+    console.error("Error fetching task group data:", error);
+    return new Response(`Error: ${error.message}`, { status: 500 });
+  }
+}
+
+async function handleMultitask(request: Request): Promise<Response> {
   const apiKey = getApiKeyFromRequest(request);
   if (!apiKey) {
     return new Response("Missing x-api-key or Authorization header", {
@@ -276,88 +426,6 @@ async function handleMultitask(request: Request, env: Env): Promise<Response> {
     return new Response(`${origin}/${taskGroupId}`);
   } catch (error) {
     console.error("Error in handleMultitask:", error);
-    return new Response(`Error: ${error.message}`, { status: 500 });
-  }
-}
-
-async function handleTaskGroupResults(
-  request: Request,
-  taskGroupId: string,
-  format: string
-): Promise<Response> {
-  const apiKey = getApiKeyFromRequest(request);
-  if (!apiKey) {
-    const url = new URL(request.url);
-    const currentUrl = encodeURIComponent(request.url);
-    const redirect_uri = encodeURIComponent(
-      `${url.origin}/callback?redirect_to=${currentUrl}`
-    );
-    const authUrl = `${url.origin}/authorize?client_id=${url.hostname}&redirect_uri=${redirect_uri}&response_type=code`;
-
-    const unauthorizedHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Authorization Required</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://assets.p0web.com/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
-  <style>
-    @font-face {
-      font-family: 'FT System Mono';
-      src: url('https://assets.p0web.com/FTSystemMono-Regular.woff2') format('woff2');
-    }
-    body { font-family: 'FT System Mono', monospace; }
-  </style>
-</head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center p-8">
-  <div class="max-w-md mx-auto text-center">
-    <div class="bg-white rounded-lg shadow-lg p-8">
-      <div class="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-        <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-        </svg>
-      </div>
-      <h1 class="text-2xl font-bold mb-4">Authorization Required</h1>
-      <p class="text-gray-600 mb-6">Please authorize to view the task group results.</p>
-      <a href="${authUrl}" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors">
-        Authorize Access
-      </a>
-    </div>
-  </div>
-</body>
-</html>`;
-
-    return new Response(unauthorizedHtml, {
-      status: 401,
-      headers: { "content-type": "text/html" },
-    });
-  }
-
-  try {
-    const data = await getTaskGroupData(apiKey, taskGroupId);
-
-    switch (format) {
-      case "json":
-        return new Response(JSON.stringify(data, null, 2), {
-          headers: { "content-type": "application/json;charset=utf8" },
-        });
-
-      case "md":
-        return new Response(formatAsMarkdown(data), {
-          headers: { "content-type": "text/markdown;charset=utf8" },
-        });
-
-      case "html":
-        return new Response(formatAsHTML(data), {
-          headers: { "content-type": "text/html;charset=utf8" },
-        });
-
-      default:
-        return new Response(JSON.stringify(data, null, 2), {
-          headers: { "content-type": "application/json;charset=utf8" },
-        });
-    }
-  } catch (error) {
-    console.error("Error fetching task group data:", error);
     return new Response(`Error: ${error.message}`, { status: 500 });
   }
 }

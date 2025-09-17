@@ -13,24 +13,6 @@
     { "tag": "v2", "deleted_classes": ["TaskGroupDO"] }
   ],
   "assets": { "directory": "./" },
-  "env": {
-    "dev": {
-      "routes": [],
-      "kv_namespaces": [
-        {
-          "binding": "OAUTH_KV",
-          "id": "8d53fa3a7d3446be9e87cb2989c59137"
-        }
-      ]
-    }
-  },
-  "routes": [
-    { "custom_domain": true, "pattern": "multitask-demo.parallel.ai" }
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "OAUTH_KV",
-      "id": "8d53fa3a7d3446be9e87cb2989c59137"
-    }
-  ]
+  "env": { "dev": { "routes": [] } },
+  "routes": [{ "custom_domain": true, "pattern": "multitask-demo.parallel.ai" }]
 }
