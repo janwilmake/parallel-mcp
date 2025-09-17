@@ -1,9 +1,14 @@
 /// <reference types="@cloudflare/workers-types" />
+/// <reference lib="esnext" />
+
 import { withMcp } from "with-mcp";
 import Parallel from "parallel-web";
 
 //@ts-ignore
 import openapi from "./openapi.json";
+const PROVIDER_TOKEN_ENDPOINT = "https://parallel.simplerauth.com/token";
+const PROVIDER_AUTHORIZE_ENDPOINT =
+  "https://parallel.simplerauth.com/authorize";
 
 interface TaskGroupInput {
   inputs: string | { [key: string]: unknown }[];
@@ -41,7 +46,7 @@ function generateState(): string {
 const fetchHandler = async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
 
-  // Handle OAuth callback from parallel.simplerauth.com
+  // Handle OAuth callback from oauth provider
   if (url.pathname === "/callback" && request.method === "GET") {
     return handleOauthCallback(request);
   }
@@ -100,22 +105,19 @@ async function handleOauthCallback(request: Request): Promise<Response> {
 
   try {
     // Exchange code for access token with external OAuth provider
-    const tokenResponse = await fetch(
-      "https://parallel.simplerauth.com/token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code: code,
-          client_id: url.hostname,
-          redirect_uri: `${url.origin}/callback`,
-          code_verifier: codeVerifier,
-        }),
-      }
-    );
+    const tokenResponse = await fetch(PROVIDER_TOKEN_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code,
+        client_id: url.hostname,
+        redirect_uri: `${url.origin}/callback`,
+        code_verifier: codeVerifier,
+      }),
+    });
 
     if (!tokenResponse.ok) {
       const fail = await tokenResponse.text();
@@ -124,7 +126,7 @@ async function handleOauthCallback(request: Request): Promise<Response> {
       );
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData: { access_token: string } = await tokenResponse.json();
     const accessToken = tokenData.access_token;
     const securePart = url.hostname === "localhost" ? "" : "Secure; ";
 
@@ -185,7 +187,7 @@ async function handleTaskGroupResults(
     );
 
     // Build authorization URL for external OAuth provider
-    const authUrl = new URL("https://parallel.simplerauth.com/authorize");
+    const authUrl = new URL(PROVIDER_AUTHORIZE_ENDPOINT);
     authUrl.searchParams.set("client_id", url.hostname);
     authUrl.searchParams.set(
       "redirect_uri",
@@ -334,7 +336,7 @@ async function handleMultitask(request: Request): Promise<Response> {
         );
 
         if (suggestResponse.ok) {
-          const suggestion = await suggestResponse.json();
+          const suggestion: any = await suggestResponse.json();
           taskSpec = {
             input_schema: suggestion.input_schema
               ? {
@@ -377,7 +379,7 @@ async function handleMultitask(request: Request): Promise<Response> {
       );
 
       if (processorResponse.ok) {
-        const suggestion = await processorResponse.json();
+        const suggestion: any = await processorResponse.json();
         processor = suggestion.recommended_processors?.[0] || "core";
       } else {
         processor = "core";
