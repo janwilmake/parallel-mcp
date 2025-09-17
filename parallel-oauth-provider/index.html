@@ -8,21 +8,21 @@
     <style>
         @font-face {
             font-family: 'FT System Mono';
-            src: url('https://assets.p0web.com/FTSystemMono-Regular.woff2') format('woff2');
+            src: url('/FTSystemMono-Regular.woff2') format('woff2');
             font-weight: 400;
             font-style: normal;
         }
 
         @font-face {
             font-family: 'FT System Mono';
-            src: url('https://assets.p0web.com/FTSystemMono-Medium.woff2') format('woff2');
+            src: url('/FTSystemMono-Medium.woff2') format('woff2');
             font-weight: 500;
             font-style: normal;
         }
 
         @font-face {
             font-family: 'Gerstner Programm';
-            src: url('https://assets.p0web.com/Gerstner-ProgrammRegular.woff2') format('woff2');
+            src: url('/Gerstner-ProgrammRegular.woff2') format('woff2');
             font-weight: 400;
             font-style: normal;
         }
@@ -54,7 +54,7 @@
             width: 80px;
             height: 80px;
             margin: 0 auto 32px;
-            background: url('https://assets.p0web.com/dark-parallel-symbol-270.svg') no-repeat center;
+            background: url('/dark-parallel-symbol-270.svg') no-repeat center;
             background-size: contain;
         }
 
@@ -231,6 +231,28 @@
             return Math.random().toString(36).substring(2) + Date.now().toString(36);
         }
 
+        // Generate PKCE parameters
+        function generatePKCE() {
+            // Generate code verifier (43-128 characters)
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            const codeVerifier = btoa(String.fromCharCode.apply(null, array))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+
+            // Generate code challenge (SHA256 hash of verifier)
+            return crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier))
+                .then(hash => {
+                    const codeChallenge = btoa(String.fromCharCode.apply(null, new Uint8Array(hash)))
+                        .replace(/\+/g, '-')
+                        .replace(/\//g, '_')
+                        .replace(/=/g, '');
+
+                    return { codeVerifier, codeChallenge };
+                });
+        }
+
         // Register client dynamically
         async function registerClient() {
             try {
@@ -267,11 +289,16 @@
                 document.getElementById('processingMessage').textContent = 'Registering client...';
                 const clientId = await registerClient();
 
-                // Step 2: Start OAuth flow
+                // Step 2: Generate PKCE parameters
+                document.getElementById('processingMessage').textContent = 'Generating PKCE parameters...';
+                const pkce = await generatePKCE();
+
+                // Step 3: Start OAuth flow
                 document.getElementById('processingMessage').textContent = 'Starting OAuth flow...';
 
                 const state = generateState();
                 localStorage.setItem('oauth_state', state);
+                localStorage.setItem('code_verifier', pkce.codeVerifier);
 
                 const authUrl = new URL('/authorize', window.location.origin);
                 authUrl.searchParams.set('client_id', clientId);
@@ -279,6 +306,8 @@
                 authUrl.searchParams.set('response_type', 'code');
                 authUrl.searchParams.set('state', state);
                 authUrl.searchParams.set('scope', 'api');
+                authUrl.searchParams.set('code_challenge', pkce.codeChallenge);
+                authUrl.searchParams.set('code_challenge_method', 'S256');
 
                 window.location.href = authUrl.toString();
             } catch (error) {
@@ -292,6 +321,10 @@
             const url = new URL(window.location);
             url.search = '';
             window.history.replaceState({}, '', url);
+
+            // Clear localStorage
+            localStorage.removeItem('oauth_state');
+            localStorage.removeItem('code_verifier');
 
             // Show initial screen
             document.getElementById('initial').classList.remove('hidden');
@@ -319,8 +352,15 @@
                     return;
                 }
 
-                // Clear saved state
+                const codeVerifier = localStorage.getItem('code_verifier');
+                if (!codeVerifier) {
+                    showError('Code verifier not found - please restart the flow');
+                    return;
+                }
+
+                // Clear saved parameters
                 localStorage.removeItem('oauth_state');
+                localStorage.removeItem('code_verifier');
 
                 // Show processing screen
                 document.getElementById('initial').classList.add('hidden');
@@ -328,11 +368,11 @@
                 document.getElementById('processingMessage').textContent = 'Exchanging authorization code for access token...';
 
                 // Exchange code for token
-                await exchangeCodeForToken(code);
+                await exchangeCodeForToken(code, codeVerifier);
             }
         });
 
-        async function exchangeCodeForToken(code) {
+        async function exchangeCodeForToken(code, codeVerifier) {
             try {
                 // First register to get client_id
                 const clientId = await registerClient();
@@ -347,6 +387,7 @@
                         code: code,
                         client_id: clientId,
                         redirect_uri: redirectUri,
+                        code_verifier: codeVerifier,
                     }),
                 });
 
@@ -375,7 +416,8 @@
             statusEl.className = 'status success';
             statusEl.innerHTML = `
                 <strong>✓ Authorization successful!</strong><br>
-                Access token received and ready to use with Parallel.ai API.
+                Access token received and ready to use with Parallel.ai API.<br>
+                Token has been stored in a secure cookie for 30 days.
             `;
 
             tokenEl.classList.remove('hidden');

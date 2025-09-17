@@ -99,6 +99,37 @@ export async function parallelOauthProvider(request, kv, env) {
     return decoder.decode(decrypted);
   };
 
+  // Parse cookies
+  const parseCookies = (cookieHeader) => {
+    const cookies = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [name, ...rest] = cookie.trim().split("=");
+        if (name && rest.length > 0) {
+          cookies[name] = decodeURIComponent(rest.join("="));
+        }
+      });
+    }
+    return cookies;
+  };
+
+  // Get stored access token from cookie
+  const getStoredAccessToken = async (request) => {
+    const cookies = parseCookies(request.headers.get("Cookie"));
+    const tokenCookie = cookies["parallel_access_token"];
+
+    if (!tokenCookie || !env.SECRET) {
+      return null;
+    }
+
+    try {
+      const encryptedData = JSON.parse(tokenCookie);
+      return await decryptApiKey(encryptedData, env.SECRET);
+    } catch (error) {
+      return null;
+    }
+  };
+
   // XSS protection - only allow safe characters in client ID
   const sanitizeClientId = (clientId) => {
     // Only allow alphanumeric, dots, hyphens, and colons (for ports)
@@ -341,6 +372,12 @@ export async function parallelOauthProvider(request, kv, env) {
     // Sanitize client ID for XSS protection
     const safeClientId = sanitizeClientId(clientId);
 
+    // Get existing access token from cookie
+    const existingToken = await getStoredAccessToken(request);
+    const tokenScript = existingToken
+      ? `window.existingAccessToken = '${existingToken}';`
+      : `window.existingAccessToken = null;`;
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -516,6 +553,33 @@ export async function parallelOauthProvider(request, kv, env) {
             margin-top: 8px;
             text-align: left;
         }
+
+        .existing-token {
+            background: rgba(251, 99, 27, 0.1);
+            border: 2px solid #fb631b;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .existing-token h3 {
+            margin-bottom: 8px;
+            color: #fb631b;
+        }
+
+        .use-existing-btn {
+            background: transparent;
+            color: #fb631b;
+            border: 2px solid #fb631b;
+            margin-bottom: 16px;
+        }
+
+        .use-existing-btn:hover {
+            background: #fb631b;
+            color: #fcfcfa;
+        }
     </style>
 </head>
 <body>
@@ -527,6 +591,11 @@ export async function parallelOauthProvider(request, kv, env) {
             Do you trust <strong>${safeClientId}</strong> to access your Parallel.ai API key?
         </div>
         
+        <div id="existingTokenSection" class="existing-token" style="display: none;">
+            <h3>Existing Access Token Found</h3>
+            <div>You already have an active access token. You can use it or create a new one.</div>
+        </div>
+        
         <form id="authForm">
             <div class="checkbox-group">
                 <label class="checkbox-container" for="trustCheckbox">
@@ -534,6 +603,10 @@ export async function parallelOauthProvider(request, kv, env) {
                     <span class="checkbox-label">I trust ${safeClientId}</span>
                 </label>
             </div>
+
+            <button type="button" class="button use-existing-btn" id="useExistingBtn" style="display: none;">
+                Use Existing Token
+            </button>
 
             <div class="form-group">
                 <label for="apiKey">Your Parallel.ai API Key</label>
@@ -557,26 +630,42 @@ export async function parallelOauthProvider(request, kv, env) {
     </div>
 
     <script>
-        // Load previous API key from localStorage
-        const apiKeyInput = document.getElementById('apiKey');
-        const savedApiKey = localStorage.getItem('parallel_api_key');
-        if (savedApiKey) {
-            apiKeyInput.value = savedApiKey;
+        ${tokenScript}
+
+        // Handle existing token
+        const existingTokenSection = document.getElementById('existingTokenSection');
+        const useExistingBtn = document.getElementById('useExistingBtn');
+        
+        if (window.existingAccessToken) {
+            existingTokenSection.style.display = 'block';
+            useExistingBtn.style.display = 'block';
         }
 
         // Handle checkbox state
         const trustCheckbox = document.getElementById('trustCheckbox');
         const submitBtn = document.getElementById('submitBtn');
+        const apiKeyInput = document.getElementById('apiKey');
 
         function updateSubmitButton() {
             const apiKey = apiKeyInput.value.trim();
             const isChecked = trustCheckbox.checked;
             
             submitBtn.disabled = !isChecked || !apiKey;
+            useExistingBtn.disabled = !isChecked;
         }
 
         trustCheckbox.addEventListener('change', updateSubmitButton);
         apiKeyInput.addEventListener('input', updateSubmitButton);
+
+        // Use existing token
+        useExistingBtn.addEventListener('click', async () => {
+            if (!trustCheckbox.checked) {
+                document.getElementById('error').textContent = 'Please confirm you trust this application';
+                return;
+            }
+
+            await authorizeWithToken(window.existingAccessToken);
+        });
 
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -598,10 +687,13 @@ export async function parallelOauthProvider(request, kv, env) {
             submitBtn.textContent = 'Authorizing...';
             errorDiv.textContent = '';
             
+            await authorizeWithToken(apiKey);
+        });
+
+        async function authorizeWithToken(apiKey) {
+            const errorDiv = document.getElementById('error');
+            
             try {
-                // Save to localStorage for next time
-                localStorage.setItem('parallel_api_key', apiKey);
-                
                 // Generate 32-character auth code
                 const authCode = 'auth_' + Array.from(crypto.getRandomValues(new Uint8Array(28)), 
                     byte => byte.toString(16).padStart(2, '0')).join('');
@@ -637,7 +729,7 @@ export async function parallelOauthProvider(request, kv, env) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Continue';
             }
-        });
+        }
     </script>
 </body>
 </html>`;
@@ -783,17 +875,28 @@ export async function parallelOauthProvider(request, kv, env) {
       // Delete the code from KV (one-time use)
       await kv.delete(code);
 
+      // Encrypt API key for cookie storage
+      const cookieEncryptedData = await encryptApiKey(apiKey, env.SECRET);
+      const cookieValue = encodeURIComponent(
+        JSON.stringify(cookieEncryptedData)
+      );
+
+      // Set 30-day cookie with the encrypted access token
+      const cookieHeader = `parallel_access_token=${cookieValue}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`; // 30 days
+
       // Return the API key as access token (by design - client needs full API access)
       return new Response(
         JSON.stringify({
           access_token: apiKey,
           token_type: "bearer",
           scope: "api",
+          expires_in: 2592000, // 30 days
         }),
         {
           headers: {
             ...getCorsHeaders(),
             "Content-Type": "application/json",
+            "Set-Cookie": cookieHeader,
           },
         }
       );
