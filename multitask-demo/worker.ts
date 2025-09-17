@@ -204,11 +204,11 @@ async function handleTaskGroupResults(
 <head>
   <title>Authorization Required</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://assets.p0web.com/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
+  <link href="/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
   <style>
     @font-face {
       font-family: 'FT System Mono';
-      src: url('https://assets.p0web.com/FTSystemMono-Regular.woff2') format('woff2');
+      src: url('/FTSystemMono-Regular.woff2') format('woff2');
     }
     body { font-family: 'FT System Mono', monospace; }
   </style>
