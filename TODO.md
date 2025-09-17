@@ -1,6 +1,6 @@
 # Search MCP everywhere using oauth provider
 
-- 1. Put oauth provider at https://login.parallel.ai (central is good since it will be swapped by one with internal connection)
+- ✅ Put oauth provider at https://parallel.simplerauth.com (central is good since it will be swapped by one with internal connection)
 - 2. Search MCP proxy server (https://search-mcp.parallel.ai) that proxies `/mcp` to https://mcp.parallel.ai/v1beta/search_mcp and adds minimally needed additions to make it work with oauth. CAREFULLY test and document these additions!
 - 3. Add to smithery. This is easy.
 - 4. Use oauth provider from login.parallel.ai instead for `multitask-demo`

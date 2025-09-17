@@ -7,7 +7,7 @@
   This design choice enables frictionless integration while maintaining user consent.
  * 
  * @param {Request} request - The incoming request
- * @param {KVNamespace} kv - Cloudflare KV namespace for temporary storage
+ * @param {{put:(key:string,value:string,config:{expirationTtl?:number})=>Promise<any>,get:(key:string)=>Promise<string>,delete:(key:string)=>Promise<any>}} kv - KV storage for temporary storage
  * @param {string} secret - secret for encryption
  * @returns {undefined|Promise<Response>} - Returns undefined if not an OAuth route, otherwise a Response
  */
@@ -31,15 +31,6 @@ export async function parallelOauthProvider(request, kv, secret) {
         "Access-Control-Allow-Methods": allowedMethods.join(", "),
       },
     });
-  };
-
-  // Cryptographically secure random token generation
-  const generateSecureToken = (length = 32) => {
-    const array = new Uint8Array(length);
-    crypto.getRandomValues(array);
-    return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-      ""
-    );
   };
 
   // Derive encryption key from secret
