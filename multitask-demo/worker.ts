@@ -12,7 +12,7 @@ export interface Env {
 
 // Types
 interface TaskGroupInput {
-  inputs: string | object[];
+  inputs: string | { [key: string]: unknown }[];
   webhook_url?: string;
   processor?: string;
   output_type: "text" | "json";
@@ -139,7 +139,7 @@ async function handleMultitask(request: Request, env: Env): Promise<Response> {
     const parallel = new Parallel({ apiKey });
 
     // Process inputs
-    let inputs: object[] = [];
+    let inputs: { [key: string]: unknown }[] = [];
     if (typeof body.inputs === "string") {
       try {
         inputs = JSON.parse(body.inputs);
@@ -245,8 +245,19 @@ async function handleMultitask(request: Request, env: Env): Promise<Response> {
 
     const taskGroupId = taskGroup.taskgroup_id;
 
+    // TODO: It'd be great to add these at some point, although mcp_servers is hard to make work for the MCP.
+
+    // {include_domains,exclude_domains}
+    const source_policy = undefined;
+
+    const mcp_servers = undefined;
     // Create task run inputs
-    const runInputs = inputs.map((input) => ({ input, processor }));
+    const runInputs = inputs.map((input) => ({
+      input,
+      processor: processor as string,
+      // source_policy,
+      // mcp_servers,
+    }));
 
     // Add runs to group in batches using SDK
     const batchSize = 500;

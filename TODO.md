@@ -1,15 +1,22 @@
 # Fix terminal state of multitask-demo
 
-- It still fucks up. Should probably add in additional check with DB before final stop: https://claude.ai/chat/9fe5ed6a-b0e9-4824-baec-6aff51582863
-- Can just use https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs
-- Write high-level overview of task group API and send to khushi
+- ❌ It still fucks up. Should probably add in additional check with DB before final stop: https://claude.ai/chat/9fe5ed6a-b0e9-4824-baec-6aff51582863
+- 🔥✅ Can just use https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs
+
+# Task Group Docs
+
+Write high-level overview of task group API in docs, make PR, ask Khushi to review.
 
 # Search MCP everywhere using oauth provider
 
 - 1. Put oauth provider at https://login.parallel.ai (central is good since it will be swapped by one with internal connection)
 - 2. Search MCP proxy server (https://search-mcp.parallel.ai) that proxies `/mcp` to https://mcp.parallel.ai/v1beta/search_mcp and adds minimally needed additions to make it work with oauth. CAREFULLY test and document these additions!
 - 3. Add to smithery. This is easy.
-- Curate a list of places to list server (Top 10+ MCP directories). Work from SEO perspective
+- 4. Use oauth provider from login.parallel.ai instead for `multitask-demo`
+
+# Alarm MCP
+
+Test this MCP in cursor, claude code, and others, and see what the limitations are and if they can be raised.
 
 # Parallel combined MCP
 
@@ -40,7 +47,7 @@ Directories:
 - https://glama.ai/mcp/servers
 - https://zed.dev/extensions?filter=context-servers
 
-not sure
+Not sure
 
 https://wassist.app/mcp/
 https://docs.factory.ai/user-guides/factory-bridge/model-context-protocol
@@ -48,3 +55,5 @@ https://tessl.io
 https://opencode.ai
 https://ampcode.com/manual and https://sourcegraph.com
 https://x.com/interaction/status/1966900969062773135
+
+Create task group using MCP to enhance this list into actionable items on how actually get listed.
