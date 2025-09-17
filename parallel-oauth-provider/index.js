@@ -951,8 +951,10 @@ export async function parallelOauthProvider(request, kv, secret, config) {
         }
       );
     }
-
-    return new Response("me endpoint");
+    // no user info but this is needed for simplerauth-provider
+    return new Response(JSON.stringify({}), {
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // Not an OAuth route - return undefined to let other handlers process the request

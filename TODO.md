@@ -1,15 +1,8 @@
-# Search MCP everywhere using oauth provider
+# Adapt simplerauth-client
 
-- ✅ Put oauth provider at https://parallel.simplerauth.com (central is good since it will be swapped by one with internal connection)
-- 2. Search MCP proxy server (https://search-mcp.parallel.ai) that proxies `/mcp` to https://mcp.parallel.ai/v1beta/search_mcp and adds minimally needed additions to make it work with oauth. CAREFULLY test and document these additions!
-- 3. Add to smithery. This is easy.
-- 4. Use oauth provider from login.parallel.ai instead for `multitask-demo`
+Must have the same workings as parallel-provider. Test it actually works everywhere including cursor/vscode.
 
-It'd be great to also start with a simple CLI `parallel` that can do tasks from a markdown spec.
-
-# SSE cookbook
-
-If there's still time, work on this
+Use simplerauth in `multitask-demo` and test again for it to work everywhere!!!
 
 # Alarm MCP
 

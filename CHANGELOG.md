@@ -37,3 +37,9 @@ OAuth
 - ❌ It still fucks up. Should probably add in additional check with DB before final stop: https://claude.ai/chat/9fe5ed6a-b0e9-4824-baec-6aff51582863
 - 🔥✅ Can just use https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs
 - ✅ Write high-level overview of task group API in docs, make PR
+
+# Search MCP everywhere using oauth provider (2025-09-17)
+
+- ✅ Put oauth provider at https://parallel.simplerauth.com (central is good since it will be swapped by one with internal connection)
+- ✅ Search MCP proxy server
+- ✅ Use oauth provider from login.parallel.ai instead for `multitask-demo`
