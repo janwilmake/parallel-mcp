@@ -3,7 +3,7 @@
   "info": {
     "x-mcp": {
       "protocolVersion": "2025-03-26",
-      "toolOperationIds": ["createMultitask"],
+      "toolOperationIds": ["createMultitask", "getTaskGroupResultsMarkdown"],
       "authEndpoint": "/me"
     },
     "title": "Parallel.ai Multitask API",
@@ -45,8 +45,7 @@
               }
             }
           }
-        },
-        "tags": ["Interface"]
+        }
       }
     },
 
@@ -249,8 +248,7 @@
               }
             }
           }
-        },
-        "tags": ["Tasks"]
+        }
       }
     },
     "/{taskGroupId}": {
@@ -274,12 +272,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": [
-                "application/json",
-                "text/html",
-                "text/markdown",
-                "text/event-stream"
-              ]
+              "enum": ["application/json", "text/html", "text/markdown"]
             },
             "description": "Response format preference"
           }
@@ -302,77 +295,13 @@
                 "schema": {
                   "type": "string"
                 }
-              },
-              "text/event-stream": {
-                "schema": {
-                  "type": "string"
-                }
               }
             }
           },
           "404": {
             "description": "Task group not found"
           }
-        },
-        "tags": ["Results"]
-      }
-    },
-    "/{taskGroupId}.json": {
-      "get": {
-        "summary": "Get Task Group Results as JSON",
-        "operationId": "getTaskGroupResultsJSON",
-        "parameters": [
-          {
-            "name": "taskGroupId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Task group results in JSON format",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskGroupResults"
-                }
-              }
-            }
-          }
-        },
-        "tags": ["Results"]
-      }
-    },
-    "/{taskGroupId}.html": {
-      "get": {
-        "summary": "Get Task Group Results as HTML",
-        "operationId": "getTaskGroupResultsHTML",
-        "parameters": [
-          {
-            "name": "taskGroupId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Task group results in HTML format",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "tags": ["Results"]
+        }
       }
     },
     "/{taskGroupId}.md": {
@@ -403,108 +332,6 @@
         },
         "tags": ["Results"]
       }
-    },
-    "/{taskGroupId}.sse": {
-      "get": {
-        "summary": "Stream Task Group Results",
-        "description": "Real-time streaming of task group updates using Server-Sent Events",
-        "operationId": "streamTaskGroupResults",
-        "parameters": [
-          {
-            "name": "taskGroupId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Server-sent events stream",
-            "content": {
-              "text/event-stream": {
-                "schema": {
-                  "type": "string"
-                },
-                "examples": {
-                  "initial": {
-                    "summary": "Initial data event",
-                    "value": "data: {\"type\":\"initial\",\"data\":{\"id\":\"tgrp_abc123\",\"status\":{\"is_active\":true},\"results\":[]}}\n\n"
-                  },
-                  "run_update": {
-                    "summary": "Run update event",
-                    "value": "data: {\"type\":\"run_update\",\"run\":{\"run_id\":\"trun_xyz789\",\"status\":\"completed\"},\"result\":{\"$id\":\"trun_xyz789\",\"status\":\"completed\"}}\n\n"
-                  },
-                  "complete": {
-                    "summary": "Completion event",
-                    "value": "data: {\"type\":\"complete\"}\n\n"
-                  }
-                }
-              }
-            },
-            "headers": {
-              "Cache-Control": {
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-cache"
-              },
-              "Connection": {
-                "schema": {
-                  "type": "string"
-                },
-                "example": "keep-alive"
-              },
-              "Access-Control-Allow-Origin": {
-                "schema": {
-                  "type": "string"
-                },
-                "example": "*"
-              }
-            }
-          }
-        },
-        "tags": ["Results"]
-      }
-    },
-    "/{taskGroupId}.db": {
-      "get": {
-        "summary": "Access Database Studio",
-        "description": "Access the queryable database studio for task group data",
-        "operationId": "accessDatabaseStudio",
-        "parameters": [
-          {
-            "name": "taskGroupId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "security": [
-          {
-            "BasicAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Database studio interface",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required"
-          }
-        },
-        "tags": ["Database"]
-      }
     }
   },
   "components": {
@@ -519,11 +346,6 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Bearer token authentication"
-      },
-      "BasicAuth": {
-        "type": "http",
-        "scheme": "basic",
-        "description": "Basic authentication for database studio access"
       }
     },
     "schemas": {
@@ -701,28 +523,7 @@
           }
         }
       },
-      "SSEEvent": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["initial", "run_update", "complete"],
-            "description": "Type of server-sent event"
-          },
-          "data": {
-            "type": "object",
-            "description": "Event payload (for initial event)"
-          },
-          "run": {
-            "type": "object",
-            "description": "Updated run data (for run_update event)"
-          },
-          "result": {
-            "type": "object",
-            "description": "Updated result data (for run_update event)"
-          }
-        }
-      },
+
       "ErrorResponse": {
         "type": "object",
         "properties": {
@@ -733,23 +534,5 @@
         }
       }
     }
-  },
-  "tags": [
-    {
-      "name": "Interface",
-      "description": "HTML interface operations"
-    },
-    {
-      "name": "Tasks",
-      "description": "Task group creation and management"
-    },
-    {
-      "name": "Results",
-      "description": "Task group results retrieval in various formats"
-    },
-    {
-      "name": "Database",
-      "description": "Database studio access"
-    }
-  ]
+  }
 }

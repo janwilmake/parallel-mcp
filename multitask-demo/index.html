@@ -110,34 +110,13 @@
                     <p class="text-sm text-gray-500 mt-1">We'll POST to this URL when all tasks are complete</p>
                 </div>
 
-                <div class="flex gap-4">
+                <div>
                     <button type="submit"
-                        class="flex-1 signal bg-orange-500 text-white py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors">
+                        class="w-full signal bg-orange-500 text-white py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors">
                         Create Task Group
-                    </button>
-                    <button type="button" id="loadExample"
-                        class="neural px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors">
-                        Load Example
                     </button>
                 </div>
             </form>
-        </div>
-
-        <div id="results" class="hidden bg-white rounded-lg shadow-lg p-6">
-            <h2 class="text-2xl font-bold mb-4">Task Group Created!</h2>
-            <p class="mb-4">Your task group URL: <a id="resultUrl" class="signal underline" target="_blank"></a></p>
-            <div class="flex flex-wrap gap-2">
-                <a id="jsonLink" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-                    target="_blank">View JSON</a>
-                <a id="htmlLink" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
-                    target="_blank">View HTML</a>
-                <a id="mdLink" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors"
-                    target="_blank">View Markdown</a>
-                <a id="sseLink" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors"
-                    target="_blank">Live Stream</a>
-                <a id="dbLink" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
-                    target="_blank">Database Studio</a>
-            </div>
         </div>
     </div>
 
@@ -154,8 +133,8 @@
             localStorage.setItem('parallelApiKey', apiKeyInput.value);
         });
 
-        // Load example data
-        document.getElementById('loadExample').addEventListener('click', () => {
+        // Load example data on page load
+        document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('outputType').value = 'json';
             document.getElementById('processor').value = 'lite';
             document.getElementById('outputDescription').value = 'Extract company information including CEO, industry, and revenue';
@@ -180,7 +159,6 @@
         document.getElementById('taskForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const formData = new FormData(e.target);
             const apiKey = document.getElementById('apiKey').value;
 
             if (!apiKey) {
@@ -220,29 +198,15 @@
 
                 const resultUrl = await response.text();
 
-                // Show results
-                const resultsDiv = document.getElementById('results');
-                const urlLink = document.getElementById('resultUrl');
-
-                urlLink.href = resultUrl;
-                urlLink.textContent = resultUrl;
-
-                // Set up format links
-                document.getElementById('jsonLink').href = resultUrl + '.json';
-                document.getElementById('htmlLink').href = resultUrl + '.html';
-                document.getElementById('mdLink').href = resultUrl + '.md';
-                document.getElementById('sseLink').href = resultUrl + '.sse';
-                document.getElementById('dbLink').href = resultUrl + '.db';
-
-                resultsDiv.classList.remove('hidden');
-                resultsDiv.scrollIntoView({ behavior: 'smooth' });
+                // Redirect to the task group URL
+                window.location.href = resultUrl;
 
             } catch (error) {
                 alert('Error: ' + error.message);
             }
         });
 
-        // Add these event listeners after the existing ones
+        // MCP integration buttons
         document.getElementById('openVscode').addEventListener('click', () => {
             const mcpUrl = 'https://multitask-demo.parallel.ai/mcp';
             const deeplink = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({
@@ -264,7 +228,6 @@
             const mcpUrl = 'https://multitask-demo.parallel.ai/mcp';
             try {
                 await navigator.clipboard.writeText(mcpUrl);
-                // Temporarily change button text to show success
                 const button = document.getElementById('copyMcpUrl');
                 const originalText = button.textContent;
                 button.textContent = 'Copied!';
