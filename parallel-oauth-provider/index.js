@@ -8,10 +8,10 @@
  * 
  * @param {Request} request - The incoming request
  * @param {KVNamespace} kv - Cloudflare KV namespace for temporary storage
- * @param {object} env - Environment variables including SECRET for encryption
+ * @param {string} secret - secret for encryption
  * @returns {undefined|Promise<Response>} - Returns undefined if not an OAuth route, otherwise a Response
  */
-export async function parallelOauthProvider(request, kv, env) {
+export async function parallelOauthProvider(request, kv, secret) {
   const url = new URL(request.url);
   const path = url.pathname;
 
@@ -118,13 +118,13 @@ export async function parallelOauthProvider(request, kv, env) {
     const cookies = parseCookies(request.headers.get("Cookie"));
     const tokenCookie = cookies["parallel_access_token"];
 
-    if (!tokenCookie || !env.SECRET) {
+    if (!tokenCookie || !secret) {
       return null;
     }
 
     try {
       const encryptedData = JSON.parse(tokenCookie);
-      return await decryptApiKey(encryptedData, env.SECRET);
+      return await decryptApiKey(encryptedData, secret);
     } catch (error) {
       return null;
     }
@@ -710,6 +710,7 @@ export async function parallelOauthProvider(request, kv, env) {
                 });
                 
                 if (!response.ok) {
+                    console.log('store key not ok',response.status, await response.text())
                     throw new Error('Failed to store API key');
                 }
                 
@@ -725,6 +726,7 @@ export async function parallelOauthProvider(request, kv, env) {
                 window.location.href = redirectUrl.toString();
                 
             } catch (error) {
+             console.error(error);
                 errorDiv.textContent = 'Authorization failed. Please try again.';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Continue';
@@ -754,7 +756,7 @@ export async function parallelOauthProvider(request, kv, env) {
         });
       }
 
-      if (!env.SECRET) {
+      if (!secret) {
         return new Response("Server configuration error", {
           status: 500,
           headers: getCorsHeaders(),
@@ -762,7 +764,7 @@ export async function parallelOauthProvider(request, kv, env) {
       }
 
       // Encrypt the API key before storing
-      const encryptedData = await encryptApiKey(apiKey, env.SECRET);
+      const encryptedData = await encryptApiKey(apiKey, secret);
 
       // Store encrypted API key with code challenge in KV with 10 minute expiration
       await kv.put(
@@ -814,7 +816,7 @@ export async function parallelOauthProvider(request, kv, env) {
         );
       }
 
-      if (!env.SECRET) {
+      if (!secret) {
         return new Response(
           JSON.stringify({
             error: "server_error",
@@ -870,13 +872,13 @@ export async function parallelOauthProvider(request, kv, env) {
       }
 
       // Decrypt the API key
-      const apiKey = await decryptApiKey({ encrypted, iv }, env.SECRET);
+      const apiKey = await decryptApiKey({ encrypted, iv }, secret);
 
       // Delete the code from KV (one-time use)
       await kv.delete(code);
 
       // Encrypt API key for cookie storage
-      const cookieEncryptedData = await encryptApiKey(apiKey, env.SECRET);
+      const cookieEncryptedData = await encryptApiKey(apiKey, secret);
       const cookieValue = encodeURIComponent(
         JSON.stringify(cookieEncryptedData)
       );
