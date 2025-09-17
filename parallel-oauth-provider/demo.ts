@@ -11,7 +11,8 @@ export default {
     const oauthResponse = await parallelOauthProvider(
       request,
       env.PKV,
-      env.SECRET
+      env.SECRET,
+      { assetsPrefix: undefined, pathPrefix: undefined }
     );
     if (oauthResponse) return oauthResponse;
     return new Response("Not found", { status: 404 });

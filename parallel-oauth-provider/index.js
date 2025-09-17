@@ -9,9 +9,10 @@
  * @param {Request} request - The incoming request
  * @param {{put:(key:string,value:string,config:{expirationTtl?:number})=>Promise<any>,get:(key:string)=>Promise<string>,delete:(key:string)=>Promise<any>}} kv - KV storage for temporary storage
  * @param {string} secret - secret for encryption
+ * @param {{pathPrefix?:string,assetsPrefix?:string}} config - optional prefix for paths and assets (must not have trailing /)
  * @returns {undefined|Promise<Response>} - Returns undefined if not an OAuth route, otherwise a Response
  */
-export async function parallelOauthProvider(request, kv, secret) {
+export async function parallelOauthProvider(request, kv, secret, config) {
   const url = new URL(request.url);
   const path = url.pathname;
 
@@ -151,10 +152,12 @@ export async function parallelOauthProvider(request, kv, secret) {
   ) {
     const metadata = {
       issuer: url.origin,
-      authorization_endpoint: `${url.origin}/authorize`,
-      token_endpoint: `${url.origin}/token`,
+      authorization_endpoint: `${url.origin}${
+        config.pathPrefix || ""
+      }/authorize`,
+      token_endpoint: `${url.origin}${config.pathPrefix || ""}/token`,
       token_endpoint_auth_methods_supported: ["none"],
-      registration_endpoint: `${url.origin}/register`,
+      registration_endpoint: `${url.origin}${config.pathPrefix || ""}/register`,
       response_types_supported: ["code"],
       grant_types_supported: ["authorization_code"],
       scopes_supported: ["api"],
@@ -192,7 +195,7 @@ export async function parallelOauthProvider(request, kv, secret) {
   }
 
   // Dynamic Client Registration endpoint
-  if (path === "/register") {
+  if (path === `${config.pathPrefix || ""}/register`) {
     if (request.method === "OPTIONS") {
       return handleOptionsRequest(["POST", "OPTIONS"]);
     }
@@ -307,7 +310,7 @@ export async function parallelOauthProvider(request, kv, secret) {
   }
 
   // Authorization endpoint - shows the API key input form
-  if (path === "/authorize") {
+  if (path === `${config.pathPrefix || ""}/authorize`) {
     const redirectUri = url.searchParams.get("redirect_uri");
     const state = url.searchParams.get("state");
     const responseType = url.searchParams.get("response_type") || "code";
@@ -325,10 +328,7 @@ export async function parallelOauthProvider(request, kv, secret) {
     if (!codeChallenge || codeChallengeMethod !== "S256") {
       return new Response(
         "PKCE required: code_challenge and code_challenge_method=S256",
-        {
-          status: 400,
-          headers: getCorsHeaders(),
-        }
+        { status: 400, headers: getCorsHeaders() }
       );
     }
 
@@ -378,19 +378,25 @@ export async function parallelOauthProvider(request, kv, secret) {
     <style>
         @font-face {
             font-family: 'FT System Mono';
-            src: url('/FTSystemMono-Regular.woff2') format('woff2');
+            src: url('${
+              config.assetsPrefix || ""
+            }/FTSystemMono-Regular.woff2') format('woff2');
             font-weight: 400;
             font-style: normal;
         }
         @font-face {
             font-family: 'FT System Mono';
-            src: url('/FTSystemMono-Medium.woff2') format('woff2');
+            src: url('${
+              config.assetsPrefix || ""
+            }/FTSystemMono-Medium.woff2') format('woff2');
             font-weight: 500;
             font-style: normal;
         }
         @font-face {
             font-family: 'Gerstner Programm';
-            src: url('/Gerstner-ProgrammRegular.woff2') format('woff2');
+            src: url('${
+              config.assetsPrefix || ""
+            }/Gerstner-ProgrammRegular.woff2') format('woff2');
             font-weight: 400;
             font-style: normal;
         }
@@ -422,7 +428,9 @@ export async function parallelOauthProvider(request, kv, secret) {
             width: 80px;
             height: 80px;
             margin: 0 auto 32px;
-            background: url('/dark-parallel-symbol-270.svg') no-repeat center;
+            background: url('${
+              config.assetsPrefix || ""
+            }/dark-parallel-symbol-270.svg') no-repeat center;
             background-size: contain;
         }
 
@@ -690,7 +698,9 @@ export async function parallelOauthProvider(request, kv, secret) {
                     byte => byte.toString(16).padStart(2, '0')).join('');
                 
                 // Store API key with auth code in KV (10 minutes expiration)
-                const response = await fetch('/store-key', {
+                const response = await fetch('${
+                  config.pathPrefix || ""
+                }/store-key', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -736,7 +746,10 @@ export async function parallelOauthProvider(request, kv, secret) {
   }
 
   // Store API key endpoint (called by the authorization form)
-  if (path === "/store-key" && request.method === "POST") {
+  if (
+    path === `${config.pathPrefix || ""}/store-key` &&
+    request.method === "POST"
+  ) {
     try {
       const { authCode, apiKey, codeChallenge } = await request.json();
 
@@ -779,7 +792,10 @@ export async function parallelOauthProvider(request, kv, secret) {
   }
 
   // Token endpoint - exchanges auth code for API key
-  if (path === "/token" && request.method === "POST") {
+  if (
+    path === `${config.pathPrefix || ""}/token` &&
+    request.method === "POST"
+  ) {
     if (request.method === "OPTIONS") {
       return handleOptionsRequest(["POST", "OPTIONS"]);
     }
@@ -910,13 +926,13 @@ export async function parallelOauthProvider(request, kv, secret) {
     }
   }
 
-  if (path === "/me") {
+  if (path === `${config.pathPrefix || ""}/me`) {
     const accessToken =
       request.headers.get("Authorization")?.slice("Bearer ".length) || "";
     const resourceMetadataUrl = `${url.origin}/.well-known/oauth-protected-resource`;
-    const loginUrl = `${url.origin}/authorize?redirect_to=${encodeURIComponent(
-      request.url
-    )}`;
+    const loginUrl = `${url.origin}${
+      config.pathPrefix || ""
+    }/authorize?redirect_to=${encodeURIComponent(request.url)}`;
 
     // Get access token from request
     if (!accessToken) {
