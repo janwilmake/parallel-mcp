@@ -1,18 +1,15 @@
-# Fix terminal state of multitask-demo
-
-- ❌ It still fucks up. Should probably add in additional check with DB before final stop: https://claude.ai/chat/9fe5ed6a-b0e9-4824-baec-6aff51582863
-- 🔥✅ Can just use https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs
-
-# Task Group Docs
-
-Write high-level overview of task group API in docs, make PR, ask Khushi to review.
-
 # Search MCP everywhere using oauth provider
 
 - 1. Put oauth provider at https://login.parallel.ai (central is good since it will be swapped by one with internal connection)
 - 2. Search MCP proxy server (https://search-mcp.parallel.ai) that proxies `/mcp` to https://mcp.parallel.ai/v1beta/search_mcp and adds minimally needed additions to make it work with oauth. CAREFULLY test and document these additions!
 - 3. Add to smithery. This is easy.
 - 4. Use oauth provider from login.parallel.ai instead for `multitask-demo`
+
+It'd be great to also start with a simple CLI `parallel` that can do tasks from a markdown spec.
+
+# SSE cookbook
+
+If there's still time, work on this
 
 # Alarm MCP
 
@@ -23,7 +20,7 @@ Test this MCP in cursor, claude code, and others, and see what the limitations a
 - Search
 - Task group with md-retrieval
 - Alarm-MCP with notification-ping to stay alive
-- Put this in a subagent template. the process is always to use search first to make a list, then do a Parallel Task, then use the Alarm MCP (or just `sleep 900`), and get back with final results https://docs.claude.com/en/docs/claude-code/sub-agents#available-tools
+- Put this MCP in a subagent template. The process is always to use search first to make a list, then do a Parallel Task, then use the Alarm MCP (or just `sleep 900`), and get back with final results https://docs.claude.com/en/docs/claude-code/sub-agents#available-tools. This can be added as description to the agent context.
 
 # Directories
 

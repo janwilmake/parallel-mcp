@@ -1,10 +1,17 @@
 /**
  * Super minimal OAuth provider for Parallel.ai API keys
+ * 
+ * Note: We intentionally allow any client (even unregistered ones) to use this OAuth provider.
+  Security is ensured by requiring users to explicitly trust the client by showing the
+  hostname of the redirect_uri and requiring manual confirmation before proceeding.
+  This design choice enables frictionless integration while maintaining user consent.
+ * 
  * @param {Request} request - The incoming request
  * @param {KVNamespace} kv - Cloudflare KV namespace for temporary storage
+ * @param {object} env - Environment variables including SECRET for encryption
  * @returns {undefined|Promise<Response>} - Returns undefined if not an OAuth route, otherwise a Response
  */
-export async function parallelOauthProvider(request, kv) {
+export async function parallelOauthProvider(request, kv, env) {
   const url = new URL(request.url);
   const path = url.pathname;
 
@@ -24,6 +31,90 @@ export async function parallelOauthProvider(request, kv) {
         "Access-Control-Allow-Methods": allowedMethods.join(", "),
       },
     });
+  };
+
+  // Cryptographically secure random token generation
+  const generateSecureToken = (length = 32) => {
+    const array = new Uint8Array(length);
+    crypto.getRandomValues(array);
+    return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
+      ""
+    );
+  };
+
+  // Derive encryption key from secret
+  const deriveKey = async (secret) => {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+
+    return await crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: encoder.encode("parallel-oauth-salt"),
+        iterations: 100000,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  };
+
+  // Encrypt API key
+  const encryptApiKey = async (apiKey, secret) => {
+    const key = await deriveKey(secret);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(apiKey);
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      data
+    );
+
+    return {
+      encrypted: Array.from(new Uint8Array(encrypted)),
+      iv: Array.from(iv),
+    };
+  };
+
+  // Decrypt API key
+  const decryptApiKey = async (encryptedData, secret) => {
+    const key = await deriveKey(secret);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: new Uint8Array(encryptedData.iv) },
+      key,
+      new Uint8Array(encryptedData.encrypted)
+    );
+
+    const decoder = new TextDecoder();
+    return decoder.decode(decrypted);
+  };
+
+  // XSS protection - only allow safe characters in client ID
+  const sanitizeClientId = (clientId) => {
+    // Only allow alphanumeric, dots, hyphens, and colons (for ports)
+    return clientId.replace(/[^a-zA-Z0-9.-:]/g, "");
+  };
+
+  // Validate PKCE code challenge
+  const validatePKCE = async (codeVerifier, codeChallenge) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=/g, "");
+    return base64 === codeChallenge;
   };
 
   // Handle OPTIONS requests
@@ -195,16 +286,28 @@ export async function parallelOauthProvider(request, kv) {
 
   // Authorization endpoint - shows the API key input form
   if (path === "/authorize") {
-    // const clientId = url.searchParams.get("client_id");
     const redirectUri = url.searchParams.get("redirect_uri");
     const state = url.searchParams.get("state");
     const responseType = url.searchParams.get("response_type") || "code";
+    const codeChallenge = url.searchParams.get("code_challenge");
+    const codeChallengeMethod = url.searchParams.get("code_challenge_method");
 
     if (!redirectUri || responseType !== "code") {
       return new Response("Invalid request parameters", {
         status: 400,
         headers: getCorsHeaders(),
       });
+    }
+
+    // PKCE is required for public clients
+    if (!codeChallenge || codeChallengeMethod !== "S256") {
+      return new Response(
+        "PKCE required: code_challenge and code_challenge_method=S256",
+        {
+          status: 400,
+          headers: getCorsHeaders(),
+        }
+      );
     }
 
     let redirectUrl;
@@ -235,6 +338,9 @@ export async function parallelOauthProvider(request, kv) {
         ? redirectUrl.host
         : redirectUrl.protocol + redirectUrl.host;
 
+    // Sanitize client ID for XSS protection
+    const safeClientId = sanitizeClientId(clientId);
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -244,19 +350,19 @@ export async function parallelOauthProvider(request, kv) {
     <style>
         @font-face {
             font-family: 'FT System Mono';
-            src: url('https://assets.p0web.com/FTSystemMono-Regular.woff2') format('woff2');
+            src: url('/FTSystemMono-Regular.woff2') format('woff2');
             font-weight: 400;
             font-style: normal;
         }
         @font-face {
             font-family: 'FT System Mono';
-            src: url('https://assets.p0web.com/FTSystemMono-Medium.woff2') format('woff2');
+            src: url('/FTSystemMono-Medium.woff2') format('woff2');
             font-weight: 500;
             font-style: normal;
         }
         @font-face {
             font-family: 'Gerstner Programm';
-            src: url('https://assets.p0web.com/Gerstner-ProgrammRegular.woff2') format('woff2');
+            src: url('/Gerstner-ProgrammRegular.woff2') format('woff2');
             font-weight: 400;
             font-style: normal;
         }
@@ -288,7 +394,7 @@ export async function parallelOauthProvider(request, kv) {
             width: 80px;
             height: 80px;
             margin: 0 auto 32px;
-            background: url('https://assets.p0web.com/dark-parallel-symbol-270.svg') no-repeat center;
+            background: url('/dark-parallel-symbol-270.svg') no-repeat center;
             background-size: contain;
         }
 
@@ -296,30 +402,41 @@ export async function parallelOauthProvider(request, kv) {
             font-family: 'Gerstner Programm', serif;
             font-size: 24px;
             font-weight: 400;
-            margin-bottom: 8px;
+            margin-bottom: 32px;
             color: #1d1b16;
         }
 
-        .subtitle {
-            font-size: 14px;
-            color: #d8d0bf;
-            margin-bottom: 32px;
-        }
-
-        .trust-notice {
-            background: rgba(251, 99, 27, 0.1);
-            border: 2px solid #fb631b;
-            border-radius: 8px;
-            padding: 16px;
+        .trust-question {
+            font-size: 16px;
+            color: #1d1b16;
             margin-bottom: 24px;
-            font-size: 14px;
             text-align: left;
         }
 
-        .client-info {
-            font-weight: 500;
-            color: #fb631b;
-            margin-bottom: 8px;
+        .checkbox-group {
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #fb631b;
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: #1d1b16;
+            cursor: pointer;
+            user-select: none;
         }
 
         .form-group {
@@ -367,16 +484,17 @@ export async function parallelOauthProvider(request, kv) {
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, opacity 0.2s;
         }
 
-        .button:hover {
+        .button:hover:not(:disabled) {
             background: #e55a18;
         }
 
         .button:disabled {
             background: #d8d0bf;
             cursor: not-allowed;
+            opacity: 0.6;
         }
 
         .link {
@@ -403,15 +521,20 @@ export async function parallelOauthProvider(request, kv) {
 <body>
     <div class="container">
         <div class="logo"></div>
-        <h1>API Access Authorization</h1>
-        <p class="subtitle">Grant access to your Parallel.ai API key</p>
+        <h1>Grant access to your Parallel.ai API key</h1>
         
-        <div class="trust-notice">
-            <div class="client-info">${clientId}</div>
-            <div>Do you trust <b>${clientId}</b> to access your Parallel.ai API key?</div>
+        <div class="trust-question">
+            Do you trust <strong>${safeClientId}</strong> to access your Parallel.ai API key?
         </div>
         
         <form id="authForm">
+            <div class="checkbox-group">
+                <label class="checkbox-container" for="trustCheckbox">
+                    <input type="checkbox" id="trustCheckbox" name="trust" required>
+                    <span class="checkbox-label">I trust ${safeClientId}</span>
+                </label>
+            </div>
+
             <div class="form-group">
                 <label for="apiKey">Your Parallel.ai API Key</label>
                 <input 
@@ -422,16 +545,15 @@ export async function parallelOauthProvider(request, kv) {
                     required
                 />
                 <div id="error" class="error"></div>
+                <a href="https://platform.parallel.ai/settings?tab=api-keys" class="link" target="_blank">Go to Parallel API Keys →</a>
             </div>
             
-            <button type="submit" class="button" id="submitBtn">
-                Authorize ${clientId}
+            <button type="submit" class="button" id="submitBtn" disabled>
+                Continue
             </button>
         </form>
         
-        <a href="https://platform.parallel.ai/settings?tab=api-keys" class="link" target="_blank">
-            Get your API key →
-        </a>
+
     </div>
 
     <script>
@@ -442,12 +564,30 @@ export async function parallelOauthProvider(request, kv) {
             apiKeyInput.value = savedApiKey;
         }
 
+        // Handle checkbox state
+        const trustCheckbox = document.getElementById('trustCheckbox');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function updateSubmitButton() {
+            const apiKey = apiKeyInput.value.trim();
+            const isChecked = trustCheckbox.checked;
+            
+            submitBtn.disabled = !isChecked || !apiKey;
+        }
+
+        trustCheckbox.addEventListener('change', updateSubmitButton);
+        apiKeyInput.addEventListener('input', updateSubmitButton);
+
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const apiKey = apiKeyInput.value.trim();
             const errorDiv = document.getElementById('error');
-            const submitBtn = document.getElementById('submitBtn');
+            
+            if (!trustCheckbox.checked) {
+                errorDiv.textContent = 'Please confirm you trust this application';
+                return;
+            }
             
             if (!apiKey) {
                 errorDiv.textContent = 'Please enter your API key';
@@ -462,14 +602,19 @@ export async function parallelOauthProvider(request, kv) {
                 // Save to localStorage for next time
                 localStorage.setItem('parallel_api_key', apiKey);
                 
-                // Generate auth code
-                const authCode = 'auth_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+                // Generate 32-character auth code
+                const authCode = 'auth_' + Array.from(crypto.getRandomValues(new Uint8Array(28)), 
+                    byte => byte.toString(16).padStart(2, '0')).join('');
                 
                 // Store API key with auth code in KV (10 minutes expiration)
                 const response = await fetch('/store-key', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ authCode, apiKey })
+                    body: JSON.stringify({ 
+                        authCode, 
+                        apiKey,
+                        codeChallenge: '${codeChallenge}'
+                    })
                 });
                 
                 if (!response.ok) {
@@ -490,7 +635,7 @@ export async function parallelOauthProvider(request, kv) {
             } catch (error) {
                 errorDiv.textContent = 'Authorization failed. Please try again.';
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Authorize ${clientId}';
+                submitBtn.textContent = 'Continue';
             }
         });
     </script>
@@ -508,17 +653,36 @@ export async function parallelOauthProvider(request, kv) {
   // Store API key endpoint (called by the authorization form)
   if (path === "/store-key" && request.method === "POST") {
     try {
-      const { authCode, apiKey } = await request.json();
+      const { authCode, apiKey, codeChallenge } = await request.json();
 
-      if (!authCode || !apiKey) {
+      if (!authCode || !apiKey || !codeChallenge) {
         return new Response("Invalid request", {
           status: 400,
           headers: getCorsHeaders(),
         });
       }
 
-      // Store in KV with 10 minute expiration
-      await kv.put(authCode, apiKey, { expirationTtl: 600 });
+      if (!env.SECRET) {
+        return new Response("Server configuration error", {
+          status: 500,
+          headers: getCorsHeaders(),
+        });
+      }
+
+      // Encrypt the API key before storing
+      const encryptedData = await encryptApiKey(apiKey, env.SECRET);
+
+      // Store encrypted API key with code challenge in KV with 10 minute expiration
+      await kv.put(
+        authCode,
+        JSON.stringify({
+          encrypted: encryptedData.encrypted,
+          iv: encryptedData.iv,
+          codeChallenge,
+          timestamp: Date.now(),
+        }),
+        { expirationTtl: 600 }
+      );
 
       return new Response("OK", { headers: getCorsHeaders() });
     } catch (error) {
@@ -539,13 +703,14 @@ export async function parallelOauthProvider(request, kv) {
       const formData = await request.formData();
       const grantType = formData.get("grant_type");
       const code = formData.get("code");
+      const codeVerifier = formData.get("code_verifier");
 
-      if (grantType !== "authorization_code" || !code) {
+      if (grantType !== "authorization_code" || !code || !codeVerifier) {
         return new Response(
           JSON.stringify({
             error: "invalid_request",
             error_description:
-              "Invalid grant_type, missing code, or missing client_id",
+              "Invalid grant_type, missing code, or missing code_verifier",
           }),
           {
             status: 400,
@@ -557,10 +722,26 @@ export async function parallelOauthProvider(request, kv) {
         );
       }
 
-      // Get API key from KV
-      const apiKey = await kv.get(code);
+      if (!env.SECRET) {
+        return new Response(
+          JSON.stringify({
+            error: "server_error",
+            error_description: "Server configuration error",
+          }),
+          {
+            status: 500,
+            headers: {
+              ...getCorsHeaders(),
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      }
 
-      if (!apiKey) {
+      // Get encrypted data from KV
+      const storedData = await kv.get(code);
+
+      if (!storedData) {
         return new Response(
           JSON.stringify({
             error: "invalid_grant",
@@ -576,10 +757,33 @@ export async function parallelOauthProvider(request, kv) {
         );
       }
 
+      const { encrypted, iv, codeChallenge } = JSON.parse(storedData);
+
+      // Validate PKCE
+      const isPKCEValid = await validatePKCE(codeVerifier, codeChallenge);
+      if (!isPKCEValid) {
+        return new Response(
+          JSON.stringify({
+            error: "invalid_grant",
+            error_description: "Invalid code_verifier",
+          }),
+          {
+            status: 400,
+            headers: {
+              ...getCorsHeaders(),
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      }
+
+      // Decrypt the API key
+      const apiKey = await decryptApiKey({ encrypted, iv }, env.SECRET);
+
       // Delete the code from KV (one-time use)
       await kv.delete(code);
 
-      // Return the API key as access token
+      // Return the API key as access token (by design - client needs full API access)
       return new Response(
         JSON.stringify({
           access_token: apiKey,
@@ -630,7 +834,7 @@ export async function parallelOauthProvider(request, kv) {
           headers: {
             ...getCorsHeaders(),
             "Content-Type": "application/json",
-            "WWW-Authenticate": `Bearer realm="main", login_url="${loginUrl}", resource_metadata="${resourceMetadataUrl}`,
+            "WWW-Authenticate": `Bearer realm="main", login_url="${loginUrl}", resource_metadata="${resourceMetadataUrl}"`,
           },
         }
       );
@@ -639,6 +843,6 @@ export async function parallelOauthProvider(request, kv) {
     return new Response("me endpoint");
   }
 
-  // Not an OAuth route
+  // Not an OAuth route - return undefined to let other handlers process the request
   return undefined;
 }
