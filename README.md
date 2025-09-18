@@ -1,56 +1,26 @@
-# Parallel Multitask API
+# Parallel MCP
 
-The task group API of Parallel is quite a lot to take in. With the Parallel Multitask API, the goal is to make the Task Group API as accessible as possible through a simplified 'multitask api', basically turning a task group APIs into a single API call.
+This is a colleciton of several MCPs to work with the Parallel APIs
 
-This simplification is designed to allow doing 80% of what's possible in a minimal API that allows a simple minimal interface to the entire workflow of the task group API suite. This type of minimal interface is ideal for use with MCP as also [advocated by Vercel](https://vercel.com/blog/the-second-wave-of-mcp-building-for-llms-not-developers#performance-improvements-with-workflow-tools), but it's also great for making it easier to build powerful apps on top of the Task Group API. For more low-level control, see https://docs.parallel.ai/
+## [Parallel OAuth Provider](parallel-oauth-provider)
 
-![task-group-to-url](design.drawio.png)
+Provides MCP-compliant User Authentication into the MCPs (and potentially any other app that uses the Parallel API)
 
-- OpenAPI Playground: https://multitask-demo.parallel.ai/openapi
-- OpenAPI JSON: https://multitask-demo.parallel.ai/openapi.json
-- Design SPEC (outdated): https://multitask-demo.parallel.ai/SPEC.md
+## [Task MCP](task-mcp)
+
+Designed for tabular data enrichment, this MCP is works best together with an MCP that can get your data source.
+
+![](mcp-apps.drawio.png)
+
 - Demo: https://multitask-demo.parallel.ai
-- MCP: https://mcp.openapisearch.com/multitask-demo.parallel.ai/mcp or https://multitask-demo.parallel.ai/mcp
+- MCP URL: https://multitask-demo.parallel.ai/mcp
 
-# How to test MCP locally
+The MCP uses https://github.com/janwilmake/with-mcp atop the openapi
 
-- On localhost, run `wrangler dev --env dev`
-- Run `npx @modelcontextprotocol/inspector` and test `http://localhost:8787/mcp`. The oauth flow should work.
+## [Search MCP](search-mcp)
 
-# Parallel Tasks MCP
+Adds OAuth to original [Parallel Search MCP](https://docs.parallel.ai/features/remote-mcp)
 
-There are 3 components to this:
+## [Sleep MCP](sleep-mcp)
 
-1. [Parallel Multitask API](https://github.com/janwilmake/parallel-multitask/tree/main/parallel-multitask)
-2. [Parallel OAuth Provider](https://github.com/janwilmake/parallel-multitask/tree/main/parallel-oauth-provider) for MCP-compliant User Authentication
-3. The MCP uses https://github.com/janwilmake/with-mcp atop the openapi
-
-MCP context:
-
-- MCP Specification: https://uithub.com/modelcontextprotocol/modelcontextprotocol/tree/main/docs/specification/2025-06-18?lines=false
-- Typescript JSON RPC methods: https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/refs/heads/main/schema/2025-03-26/schema.ts or new https://uithub.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts
-- with-mcp implementation: https://uithub.com/janwilmake/with-mcp/blob/main/with-mcp.ts
-
-Other Context:
-
-- Parallel Multitask API: https://multitask-demo.parallel.ai/openapi.json
-- Parallel oauth provider url: https://oauth-demo.parallel.ai
-- Simplerauth-client: https://uithub.com/janwilmake/universal-mcp-oauth/blob/main/simplerauth-client/README.md
-
-## Consideration for sending notifications
-
-Our goal:
-
-- `/mcp` with single tool `multitask`: proxies to this API passing MCP request session ID as part of the webhook url
-- has a `/webhook` endpoint that sends a notification back to the right session (this should be proven first to work!)
-
-To send notifications, the connection needs to remain open with SSE. It's unclear if clients will do this for up to an hour, probably most desktop clients do, but for example, does ChatGPT does it after the chat has completed? Support may be limited. Also, this still doesn't give us the desired outcome of having the LLM respond to the task results after they're done. There are several proposals in the MCP spec that may improve the situation.
-
-Because of this, my initial goal is to see if the current implementation can already be useful without notification. I think it does provide value as it allows for much easier task experimentation with multiple items and multiple configurations, then viewing the results in different tabs as they come back.
-
-Friday if no oauth yet:
-
-- Create demo without oauth if preferred, test output quality and ease of use
-  - requires with-mcp or openapi-to-mcp to support `?apiKey` (and `.well-known/mcp-config`)
-- Test if adding `/.well-known/mcp-config` works for curlmcp. If so, ask saunack to add to https://docs.parallel.ai/features/remote-mcp.
-- Add https://docs.parallel.ai/features/remote-mcp to MCP registry https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/
+Experimental tool to allow for longer tool calling time

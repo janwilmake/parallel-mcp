@@ -1,23 +1,34 @@
-# Adapt simplerauth-client
+# Last Things
 
-Must have the same workings as parallel-provider. Test it actually works everywhere including cursor/vscode.
+Remove UX of "use previous key", just add eye to view/hide previous one in input.
 
-Use simplerauth in `multitask-demo` and test again for it to work everywhere!!!
+Must have the same workings as `parallel-provider`. Test it actually works everywhere including cursor/vscode.
 
-# Alarm MCP
+Use simplerauth in `task-mcp` and test again for it to work everywhere!
+
+Replace link with `platform.parallel.ai/view/task-run-groups/{task_run_group_id}`
+
+`simplerauth-client`: needs `pathPrefix` or to use `.well-known` to know where to go (will require extra fetch)
+
+Create PR for new MCP docs: https://docs.parallel.ai/features/remote-mcp
+
+After the Task MCP works, create instructions for dogfooding (and what I want them to test)
+
+# SSE Cookbook
+
+Do this today
+
+# Sleep MCP
 
 Test this MCP in cursor, claude code, and others, and see what the limitations are and if they can be raised.
 
-# Parallel combined MCP
-
-- Search
-- Task group with md-retrieval
-- Alarm-MCP with notification-ping to stay alive
-- Put this MCP in a subagent template. The process is always to use search first to make a list, then do a Parallel Task, then use the Alarm MCP (or just `sleep 900`), and get back with final results https://docs.claude.com/en/docs/claude-code/sub-agents#available-tools. This can be added as description to the agent context.
-
 # Directories
 
-Directories:
+Registry registry:
+
+https://mastra.ai/mcp-registry-registry
+
+Registries:
 
 - vscode - https://github.com/mcp
 - cursor - https://docs.cursor.com/en/tools/mcp and https://docs.claude.com/en/docs/claude-code/mcp#popular-mcp-servers
@@ -37,7 +48,7 @@ Directories:
 - https://glama.ai/mcp/servers
 - https://zed.dev/extensions?filter=context-servers
 
-Not sure
+Not sure:
 
 https://wassist.app/mcp/
 https://docs.factory.ai/user-guides/factory-bridge/model-context-protocol
@@ -47,3 +58,10 @@ https://ampcode.com/manual and https://sourcegraph.com
 https://x.com/interaction/status/1966900969062773135
 
 Create task group using MCP to enhance this list into actionable items on how actually get listed.
+
+# Parallel Combined MCP (later)
+
+- Search
+- Task group with md-retrieval
+- Sleep-MCP with notification-ping to stay alive
+- Put this MCP in a subagent template. The process is always to use search first to make a list, then do a Parallel Task, then use the Alarm MCP (or just `sleep 900`), and get back with final results https://docs.claude.com/en/docs/claude-code/sub-agents#available-tools. This can be added as description to the agent context.
