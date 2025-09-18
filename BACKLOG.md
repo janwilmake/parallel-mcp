@@ -1,8 +1,4 @@
-# Improving HTML
+# Potential improvements Task MCP
 
-For now it's not a priority.
-
-- Add confidence and references into HTML
-- Improve HTML and streaming behavior to be fully realtime
-- Make HTML mobile-friendly
-- Add ability to see in the title whether the task result is still loading or not (Good DX)
+- Way to retrieve basis for specific row (by id) or field (by field name)
+- Maybe: provide a way to add `limit` of amount of tasks to be done such that we can pass low-token URL with all rows, yet do just x amount of tasks

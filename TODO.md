@@ -10,16 +10,14 @@
 **Improve task MCP**
 
 - ✅ Remove callback functionality; instruct manual polling, later replace with [automatic mcp polling when this SEP lands](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1391)
-- Ensure task warnings/errors show up in the markdown for easier iteration
-- Way to retrieve basis for specific row (by id) or field (by field name)
-- Maybe: provide a way to add `limit` of amount of tasks to be done such that we can pass low-token URL with all rows, yet do just x amount of tasks
+- ✅ Ensure task warnings/errors show up in the markdown for easier iteration
 
 # After manvesh deploys Task Group Link (Friday)
 
 - ✅ Improve README and repo name/structure
 - Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
 - Create Draft PR for new MCP docs: https://docs.parallel.ai/features/remote-mcp
-- Create `DOGFOODING.md` guide (test myself first) and share in slack
+- Create `DOGFOODING.md` guide (test myself first) and share in Slack
 
 # Sleep MCP
 

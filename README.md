@@ -12,8 +12,8 @@ Designed for tabular data enrichment, this MCP is works best together with an MC
 
 ![](mcp-apps.drawio.png)
 
-- Demo: https://multitask-demo.parallel.ai
-- MCP URL: https://multitask-demo.parallel.ai/mcp
+- Demo: https://task-mcp.parallel.ai
+- MCP URL: https://task-mcp.parallel.ai/mcp
 
 The MCP uses https://github.com/janwilmake/with-mcp atop the openapi
 

@@ -11,5 +11,5 @@
   ],
   "assets": { "directory": "./" },
   "env": { "dev": { "routes": [] } },
-  "routes": [{ "custom_domain": true, "pattern": "multitask-demo.parallel.ai" }]
+  "routes": [{ "custom_domain": true, "pattern": "task-mcp.parallel.ai" }]
 }

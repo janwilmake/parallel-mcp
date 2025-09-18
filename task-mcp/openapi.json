@@ -16,7 +16,7 @@
   },
   "servers": [
     {
-      "url": "https://multitask-demo.parallel.ai",
+      "url": "https://task-mcp.parallel.ai",
       "description": "Multitask Demo Server"
     }
   ],
@@ -52,7 +52,7 @@
     "/v1beta/tasks/multitask": {
       "post": {
         "summary": "Create Multitask Group",
-        "description": "Creates a new task group for batch processing. Responds with a URL in format https://multitask-demo.parallel.ai/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here.",
+        "description": "Creates a new task group for batch processing. Responds with a URL in format https://task-mcp.parallel.ai/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here.",
         "operationId": "createMultitask",
         "requestBody": {
           "required": true,
@@ -182,7 +182,7 @@
                 "schema": {
                   "type": "string",
                   "description": "URL at which the task group can be viewed",
-                  "example": "https://multitask-demo.parallel.ai/tgrp_abc123"
+                  "example": "https://task-mcp.parallel.ai/tgrp_abc123"
                 }
               }
             }
@@ -520,7 +520,7 @@
             "type": "string",
             "format": "uri",
             "description": "URL to access the completed task group results",
-            "example": "https://multitask-demo.parallel.ai/tgrp_abc123"
+            "example": "https://task-mcp.parallel.ai/tgrp_abc123"
           }
         }
       },

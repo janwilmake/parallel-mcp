@@ -208,7 +208,7 @@
 
         // MCP integration buttons
         document.getElementById('openVscode').addEventListener('click', () => {
-            const mcpUrl = 'https://multitask-demo.parallel.ai/mcp';
+            const mcpUrl = 'https://task-mcp.parallel.ai/mcp';
             const deeplink = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({
                 "name": "Parallel Tasks",
                 "gallery": false,
@@ -218,14 +218,14 @@
         });
 
         document.getElementById('openCursor').addEventListener('click', () => {
-            const mcpUrl = 'https://multitask-demo.parallel.ai/mcp';
+            const mcpUrl = 'https://task-mcp.parallel.ai/mcp';
             const config = btoa(JSON.stringify({ "url": mcpUrl }));
             const deeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=Parallel%20Tasks&config=${config}`;
             window.open(deeplink, '_blank');
         });
 
         document.getElementById('copyMcpUrl').addEventListener('click', async () => {
-            const mcpUrl = 'https://multitask-demo.parallel.ai/mcp';
+            const mcpUrl = 'https://task-mcp.parallel.ai/mcp';
             try {
                 await navigator.clipboard.writeText(mcpUrl);
                 const button = document.getElementById('copyMcpUrl');

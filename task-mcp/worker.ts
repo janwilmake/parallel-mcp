@@ -340,7 +340,7 @@ async function handleMultitask(request: Request): Promise<Response> {
     try {
       taskGroup = await parallel.beta.taskGroup.create({
         metadata: {
-          created_via: "multitask-demo",
+          created_via: "task-mcp",
           output_type: body.output_type,
           processor_used: processor,
           inputs_count: inputs.length,

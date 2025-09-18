@@ -4,9 +4,9 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 
 ![task-group-to-url](design.drawio.png)
 
-- OpenAPI Playground: https://multitask-demo.parallel.ai/openapi
-- OpenAPI JSON: https://multitask-demo.parallel.ai/openapi.json
-- Design SPEC (outdated): https://multitask-demo.parallel.ai/SPEC.md
+- OpenAPI Playground: https://task-mcp.parallel.ai/openapi
+- OpenAPI JSON: https://task-mcp.parallel.ai/openapi.json
+- Design SPEC (outdated): https://task-mcp.parallel.ai/SPEC.md
 
 # How to test MCP locally
 
@@ -23,6 +23,6 @@ MCP context:
 
 Other Context:
 
-- Parallel Multitask API: https://multitask-demo.parallel.ai/openapi.json
+- Parallel Multitask API: https://task-mcp.parallel.ai/openapi.json
 - Parallel oauth provider url: https://oauth-demo.parallel.ai
 - Simplerauth-client: https://uithub.com/janwilmake/universal-mcp-oauth/blob/main/simplerauth-client/README.md

@@ -32,7 +32,7 @@ OAuth
 - ✅ Show confidence as emoji in markdown (if present)
 - ✅ Show entire result in each column with newlines being enters to maintain markdown table
 
-# Fix terminal state of multitask-demo (2025-09-17)
+# Fix terminal state of task-mcp (2025-09-17)
 
 - ❌ It still fucks up. Should probably add in additional check with DB before final stop: https://claude.ai/chat/9fe5ed6a-b0e9-4824-baec-6aff51582863
 - 🔥✅ Can just use https://docs.parallel.ai/api-reference/task-api-beta/stream-task-group-runs
@@ -42,4 +42,4 @@ OAuth
 
 - ✅ Put oauth provider at https://parallel.simplerauth.com (central is good since it will be swapped by one with internal connection)
 - ✅ Search MCP proxy server
-- ✅ Use oauth provider from login.parallel.ai instead for `multitask-demo`
+- ✅ Use oauth provider from login.parallel.ai instead for `task-mcp`
