@@ -3,7 +3,8 @@
     "@cloudflare/workers-types": "^4.20250911.0"
   },
   "dependencies": {
-    "parallel-web": "^0.1.1",
-    "with-mcp": "^0.0.17"
+    "parallel-web": "0.1.1",
+    "simplerauth-client": "0.0.17",
+    "with-mcp": "0.0.17"
   }
 }

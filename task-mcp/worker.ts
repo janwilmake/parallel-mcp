@@ -3,53 +3,20 @@
 
 import { withMcp } from "with-mcp";
 import Parallel from "parallel-web";
-
+import { withSimplerAuth } from "simplerauth-client";
 //@ts-ignore
 import openapi from "./openapi.json";
-const PROVIDER_TOKEN_ENDPOINT = "https://parallel.simplerauth.com/token";
-const PROVIDER_AUTHORIZE_ENDPOINT =
-  "https://parallel.simplerauth.com/authorize";
 
 interface TaskGroupInput {
   inputs: string | { [key: string]: unknown }[];
-  webhook_url?: string;
   processor?: string;
   output_type: "text" | "json";
   output_description?: string;
   output_schema?: any;
 }
 
-// Add PKCE helper functions
-function generateCodeVerifier(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return btoa(String.fromCharCode(...array))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
-}
-
-async function generateCodeChallenge(verifier: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
-}
-
-function generateState(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
-}
-
 const fetchHandler = async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
-
-  // Handle OAuth callback from oauth provider
-  if (url.pathname === "/callback" && request.method === "GET") {
-    return handleOauthCallback(request);
-  }
 
   // Handle multitask creation
   if (url.pathname === "/v1beta/tasks/multitask" && request.method === "POST") {
@@ -72,95 +39,20 @@ const fetchHandler = async (request: Request): Promise<Response> => {
 };
 
 export default {
-  fetch: withMcp(fetchHandler, openapi, {
-    authEndpoint: "/me",
-    serverInfo: { name: "Parallel Multitask MCP", version: "1.0.0" },
-    toolOperationIds: ["createMultitask", "getTaskGroupResultsMarkdown"],
-  }),
-} satisfies ExportedHandler;
-
-async function handleOauthCallback(request: Request): Promise<Response> {
-  const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
-  const redirectTo = url.searchParams.get("redirect_to");
-
-  if (!code) {
-    return new Response("Missing authorization code", { status: 400 });
-  }
-
-  // Verify state parameter from cookie
-  const cookieHeader = request.headers.get("Cookie");
-  const cookies = parseCookies(cookieHeader);
-  const storedState = cookies["oauth_state"];
-  const codeVerifier = cookies["code_verifier"];
-
-  if (!storedState || state !== storedState) {
-    return new Response("Invalid state parameter", { status: 400 });
-  }
-
-  if (!codeVerifier) {
-    return new Response("Missing code verifier", { status: 400 });
-  }
-
-  try {
-    // Exchange code for access token with external OAuth provider
-    const tokenResponse = await fetch(PROVIDER_TOKEN_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code: code,
-        client_id: url.hostname,
-        redirect_uri: `${url.origin}/callback`,
-        code_verifier: codeVerifier,
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const fail = await tokenResponse.text();
-      throw new Error(
-        "Token exchange failed: status = " + tokenResponse.status + ": " + fail
-      );
+  fetch: withMcp(
+    withSimplerAuth(fetchHandler, {
+      oauthProviderHost: "parallel.simplerauth.com",
+      scope: "api",
+      isLoginRequired: false,
+    }),
+    openapi,
+    {
+      authEndpoint: "/me",
+      serverInfo: { name: "Parallel Multitask MCP", version: "1.0.0" },
+      toolOperationIds: ["createMultitask", "getTaskGroupResultsMarkdown"],
     }
-
-    const tokenData: { access_token: string } = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-    const securePart = url.hostname === "localhost" ? "" : "Secure; ";
-
-    // Clear OAuth state cookies and set access token cookie
-    const clearStateCookie = `oauth_state=; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=0`;
-    const clearVerifierCookie = `code_verifier=; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=0`;
-    const accessTokenCookie = `access_token=${accessToken}; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=2592000`; // 30 days
-
-    const headers = new Headers({
-      Location: redirectTo || "/",
-    });
-    headers.append("Set-Cookie", clearStateCookie);
-    headers.append("Set-Cookie", clearVerifierCookie);
-    headers.append("Set-Cookie", accessTokenCookie);
-
-    return new Response(null, { status: 302, headers });
-  } catch (error) {
-    console.error("OAuth callback error:", error);
-    return new Response("OAuth callback failed", { status: 500 });
-  }
-}
-
-function parseCookies(cookieHeader: string | null): Record<string, string> {
-  const cookies: Record<string, string> = {};
-  if (cookieHeader) {
-    cookieHeader.split(";").forEach((cookie) => {
-      const [name, ...rest] = cookie.trim().split("=");
-      if (name && rest.length > 0) {
-        cookies[name] = decodeURIComponent(rest.join("="));
-      }
-    });
-  }
-  return cookies;
-}
+  ),
+} satisfies ExportedHandler;
 
 async function handleTaskGroupResults(
   request: Request,
@@ -169,74 +61,12 @@ async function handleTaskGroupResults(
 ): Promise<Response> {
   const apiKey = getApiKeyFromRequest(request);
   if (!apiKey) {
-    const url = new URL(request.url);
-
-    // Generate PKCE parameters for OAuth flow
-    const codeVerifier = generateCodeVerifier();
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
-    const state = generateState();
-
-    // Store OAuth state and code verifier in cookies
-    const securePart = url.hostname === "localhost" ? "" : "Secure; ";
-    const stateCookie = `oauth_state=${state}; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=600`; // 10 minutes
-    const verifierCookie = `code_verifier=${codeVerifier}; HttpOnly; ${securePart}SameSite=Lax; Path=/; Max-Age=600`; // 10 minutes
-
-    const currentUrl = encodeURIComponent(request.url);
-    const redirectUri = encodeURIComponent(
-      `${url.origin}/callback?redirect_to=${currentUrl}`
-    );
-
-    // Build authorization URL for external OAuth provider
-    const authUrl = new URL(PROVIDER_AUTHORIZE_ENDPOINT);
-    authUrl.searchParams.set("client_id", url.hostname);
-    authUrl.searchParams.set(
-      "redirect_uri",
-      `${url.origin}/callback?redirect_to=${currentUrl}`
-    );
-    authUrl.searchParams.set("response_type", "code");
-    authUrl.searchParams.set("state", state);
-    authUrl.searchParams.set("scope", "api");
-    authUrl.searchParams.set("code_challenge", codeChallenge);
-    authUrl.searchParams.set("code_challenge_method", "S256");
-
-    const unauthorizedHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Authorization Required</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="/FTSystemMono-Regular.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
-  <style>
-    @font-face {
-      font-family: 'FT System Mono';
-      src: url('/FTSystemMono-Regular.woff2') format('woff2');
-    }
-    body { font-family: 'FT System Mono', monospace; }
-  </style>
-</head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center p-8">
-  <div class="max-w-md mx-auto text-center">
-    <div class="bg-white rounded-lg shadow-lg p-8">
-      <div class="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-        <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-        </svg>
-      </div>
-      <h1 class="text-2xl font-bold mb-4">Authorization Required</h1>
-      <p class="text-gray-600 mb-6">Please authorize to view the task group results.</p>
-      <a href="${authUrl.toString()}" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors">
-        Authorize Access
-      </a>
-    </div>
-  </div>
-</body>
-</html>`;
-
-    const headers = new Headers({
-      "content-type": "text/html",
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: `/authorize?redirect_to=${encodeURIComponent(request.url)}`,
+      },
     });
-    headers.append("Set-Cookie", stateCookie);
-    headers.append("Set-Cookie", verifierCookie);
-    return new Response(unauthorizedHtml, { status: 401, headers });
   }
 
   try {
@@ -272,46 +102,132 @@ async function handleTaskGroupResults(
 async function handleMultitask(request: Request): Promise<Response> {
   const apiKey = getApiKeyFromRequest(request);
   if (!apiKey) {
-    return new Response("Missing x-api-key or Authorization header", {
-      status: 401,
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Authentication required",
+        detail:
+          "Missing x-api-key or Authorization header. Please provide a valid API key.",
+        status: 401,
+      }),
+      {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      }
+    );
   }
 
-  const body: TaskGroupInput = await request.json();
+  let body: TaskGroupInput;
+  try {
+    body = await request.json();
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        error: "Invalid JSON",
+        detail: "Request body must be valid JSON",
+        status: 400,
+      }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
 
   // Validate required fields
   if (!body.inputs || !body.output_type) {
-    return new Response("Missing required fields: inputs, output_type", {
-      status: 400,
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Missing required fields",
+        detail: "Both 'inputs' and 'output_type' are required fields",
+        required_fields: ["inputs", "output_type"],
+        received_fields: Object.keys(body),
+        status: 400,
+      }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }
+    );
   }
 
   try {
     // Initialize Parallel SDK client
     const parallel = new Parallel({ apiKey });
 
-    // Process inputs
+    // Process inputs with detailed error handling
     let inputs: { [key: string]: unknown }[] = [];
-    if (typeof body.inputs === "string") {
-      try {
-        inputs = JSON.parse(body.inputs);
+    try {
+      if (typeof body.inputs === "string") {
+        try {
+          inputs = JSON.parse(body.inputs);
+          if (!Array.isArray(inputs)) {
+            throw new Error("Parsed JSON is not an array");
+          }
+        } catch (parseError) {
+          // Try as URL
+          try {
+            const url = new URL(body.inputs);
+            const inputsResponse = await fetch(body.inputs);
+            if (!inputsResponse.ok) {
+              throw new Error(
+                `Failed to fetch inputs from URL: ${inputsResponse.status} ${inputsResponse.statusText}`
+              );
+            }
+            const contentType = inputsResponse.headers.get("content-type");
+            if (!contentType?.includes("application/json")) {
+              throw new Error(
+                `URL returned non-JSON content type: ${contentType}`
+              );
+            }
+            inputs = await inputsResponse.json();
+            if (!Array.isArray(inputs)) {
+              throw new Error("URL content is not a JSON array");
+            }
+          } catch (urlError) {
+            throw new Error(
+              `Failed to process inputs string - not valid JSON (${parseError.message}) and not valid URL (${urlError.message})`
+            );
+          }
+        }
+      } else {
+        inputs = body.inputs;
         if (!Array.isArray(inputs)) {
-          throw new Error("No array");
+          throw new Error("Inputs must be an array");
         }
-      } catch (e) {
-        const url = new URL(body.inputs);
-        const inputsResponse = await fetch(body.inputs);
-        if (!inputsResponse.ok) {
-          throw new Error("Failed to fetch inputs from URL");
-        }
-        inputs = await inputsResponse.json();
       }
-    } else {
-      inputs = body.inputs;
+    } catch (inputError) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid inputs format",
+          detail: inputError.message,
+          expected:
+            "Array of objects or JSON string containing array or URL returning JSON array",
+          status: 400,
+        }),
+        {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }
+      );
     }
 
-    // Prepare task specification
+    if (inputs.length === 0) {
+      return new Response(
+        JSON.stringify({
+          error: "Empty inputs",
+          detail: "At least one input is required",
+          status: 400,
+        }),
+        {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }
+      );
+    }
+
+    // Prepare task specification with error handling
     let taskSpec: any = {};
+    let schemaGenerationWarnings: string[] = [];
 
     if (body.output_type === "json") {
       if (body.output_schema) {
@@ -321,34 +237,47 @@ async function handleMultitask(request: Request): Promise<Response> {
         };
       } else if (body.output_description) {
         // Use suggest API to generate schema from description
-        const suggestResponse = await fetch(
-          "https://api.parallel.ai/v1beta/tasks/suggest",
-          {
-            method: "POST",
-            headers: {
-              "x-api-key": apiKey,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              user_intent: body.output_description,
-            }),
-          }
-        );
+        try {
+          const suggestResponse = await fetch(
+            "https://api.parallel.ai/v1beta/tasks/suggest",
+            {
+              method: "POST",
+              headers: {
+                "x-api-key": apiKey,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                user_intent: body.output_description,
+              }),
+            }
+          );
 
-        if (suggestResponse.ok) {
-          const suggestion: any = await suggestResponse.json();
-          taskSpec = {
-            input_schema: suggestion.input_schema
-              ? {
-                  type: "json",
-                  json_schema: suggestion.input_schema,
-                }
-              : undefined,
-            output_schema: {
-              type: "json",
-              json_schema: suggestion.output_schema,
-            },
-          };
+          if (suggestResponse.ok) {
+            const suggestion: any = await suggestResponse.json();
+            taskSpec = {
+              input_schema: suggestion.input_schema
+                ? {
+                    type: "json",
+                    json_schema: suggestion.input_schema,
+                  }
+                : undefined,
+              output_schema: {
+                type: "json",
+                json_schema: suggestion.output_schema,
+              },
+            };
+          } else {
+            const errorText = await suggestResponse.text();
+            schemaGenerationWarnings.push(
+              `Failed to generate schema from description: ${suggestResponse.status} ${errorText}`
+            );
+            taskSpec.output_schema = { type: "auto" };
+          }
+        } catch (suggestError) {
+          schemaGenerationWarnings.push(
+            `Schema generation failed: ${suggestError.message}`
+          );
+          taskSpec.output_schema = { type: "auto" };
         }
       } else {
         taskSpec.output_schema = { type: "auto" };
@@ -360,75 +289,200 @@ async function handleMultitask(request: Request): Promise<Response> {
       };
     }
 
-    // Suggest processor if not provided
+    // Suggest processor if not provided with error handling
     let processor = body.processor;
-    if (!processor) {
-      const processorResponse = await fetch(
-        "https://api.parallel.ai/v1beta/tasks/suggest-processor",
-        {
-          method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            task_spec: taskSpec,
-            choose_processors_from: ["lite", "base", "core", "pro", "ultra"],
-          }),
-        }
-      );
+    let processorWarnings: string[] = [];
 
-      if (processorResponse.ok) {
-        const suggestion: any = await processorResponse.json();
-        processor = suggestion.recommended_processors?.[0] || "core";
-      } else {
+    if (!processor) {
+      try {
+        const processorResponse = await fetch(
+          "https://api.parallel.ai/v1beta/tasks/suggest-processor",
+          {
+            method: "POST",
+            headers: {
+              "x-api-key": apiKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              task_spec: taskSpec,
+              choose_processors_from: ["lite", "base", "core", "pro", "ultra"],
+            }),
+          }
+        );
+
+        if (processorResponse.ok) {
+          const suggestion: any = await processorResponse.json();
+          processor = suggestion.recommended_processors?.[0] || "core";
+          if (suggestion.recommended_processors?.length > 1) {
+            processorWarnings.push(
+              `Multiple processors recommended: ${suggestion.recommended_processors.join(
+                ", "
+              )}. Using: ${processor}`
+            );
+          }
+        } else {
+          const errorText = await processorResponse.text();
+          processorWarnings.push(
+            `Failed to get processor recommendation: ${processorResponse.status} ${errorText}. Using default: core`
+          );
+          processor = "core";
+        }
+      } catch (processorError) {
+        processorWarnings.push(
+          `Processor recommendation failed: ${processorError.message}. Using default: core`
+        );
         processor = "core";
       }
     }
 
-    // Create task group using SDK with webhook URL in metadata
-    const taskGroup = await parallel.beta.taskGroup.create({
-      metadata: {
-        created_via: "multitask-demo",
-        output_type: body.output_type,
-        webhook_url: body.webhook_url,
-      },
-    });
+    // Create task group using SDK with error handling
+    let taskGroup;
+    try {
+      taskGroup = await parallel.beta.taskGroup.create({
+        metadata: {
+          created_via: "multitask-demo",
+          output_type: body.output_type,
+          processor_used: processor,
+          inputs_count: inputs.length,
+          created_at: new Date().toISOString(),
+        },
+      });
+    } catch (createError) {
+      return new Response(
+        JSON.stringify({
+          error: "Failed to create task group",
+          detail: createError.message,
+          status: 500,
+        }),
+        {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        }
+      );
+    }
 
     const taskGroupId = taskGroup.taskgroup_id;
 
-    // TODO: It'd be great to add these at some point, although mcp_servers is hard to make work for the MCP.
-
-    // {include_domains,exclude_domains}
-    const source_policy = undefined;
-
-    const mcp_servers = undefined;
     // Create task run inputs
-    const runInputs = inputs.map((input) => ({
+    const runInputs = inputs.map((input, index) => ({
       input,
       processor: processor as string,
+      metadata: {
+        input_index: index.toString(),
+      },
+      // TODO: Add source_policy and mcp_servers when needed
       // source_policy,
       // mcp_servers,
     }));
 
-    // Add runs to group in batches using SDK
+    // Add runs to group in batches using SDK with detailed error tracking
     const batchSize = 500;
+    const batchResults: any[] = [];
+    let totalProcessed = 0;
 
-    for (let i = 0; i < runInputs.length; i += batchSize) {
-      const batch = runInputs.slice(i, i + batchSize);
+    try {
+      for (let i = 0; i < runInputs.length; i += batchSize) {
+        const batch = runInputs.slice(i, i + batchSize);
+        const batchNumber = Math.floor(i / batchSize) + 1;
+        const totalBatches = Math.ceil(runInputs.length / batchSize);
 
-      await parallel.beta.taskGroup.addRuns(taskGroupId, {
-        default_task_spec: taskSpec,
-        inputs: batch,
-      });
+        try {
+          const result = await parallel.beta.taskGroup.addRuns(taskGroupId, {
+            default_task_spec: taskSpec,
+            inputs: batch,
+          });
+
+          batchResults.push({
+            batch: batchNumber,
+            success: true,
+            runs_added: batch.length,
+            run_ids: result.run_ids,
+          });
+          totalProcessed += batch.length;
+        } catch (batchError) {
+          batchResults.push({
+            batch: batchNumber,
+            success: false,
+            error: batchError.message,
+            attempted_runs: batch.length,
+          });
+
+          // Continue with other batches even if one fails
+          console.error(
+            `Batch ${batchNumber}/${totalBatches} failed:`,
+            batchError
+          );
+        }
+      }
+    } catch (overallError) {
+      return new Response(
+        JSON.stringify({
+          error: "Failed to add runs to task group",
+          detail: overallError.message,
+          task_group_id: taskGroupId,
+          inputs_processed: totalProcessed,
+          total_inputs: inputs.length,
+          batch_results: batchResults,
+          status: 500,
+        }),
+        {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        }
+      );
     }
-    // TODO: webhook_url should be used
 
     const origin = new URL(request.url).origin;
-    return new Response(`${origin}/${taskGroupId}`);
+    const successResponse = {
+      task_group_url: `${origin}/${taskGroupId}`,
+      task_group_id: taskGroupId,
+      summary: {
+        total_inputs: inputs.length,
+        total_processed: totalProcessed,
+        batches_processed: batchResults.length,
+        successful_batches: batchResults.filter((b) => b.success).length,
+        failed_batches: batchResults.filter((b) => !b.success).length,
+      },
+      processor_used: processor,
+      warnings: [...schemaGenerationWarnings, ...processorWarnings].filter(
+        (w) => w
+      ),
+      batch_details: batchResults,
+    };
+
+    // Return detailed response based on success/failure
+    if (batchResults.every((b) => b.success)) {
+      return new Response(JSON.stringify(successResponse), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    } else {
+      return new Response(
+        JSON.stringify({
+          ...successResponse,
+          error: "Some batches failed",
+          status: 207, // Multi-status
+        }),
+        {
+          status: 207,
+          headers: { "content-type": "application/json" },
+        }
+      );
+    }
   } catch (error) {
     console.error("Error in handleMultitask:", error);
-    return new Response(`Error: ${error.message}`, { status: 500 });
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error",
+        detail: error.message,
+        stack: error.stack,
+        status: 500,
+      }),
+      {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      }
+    );
   }
 }
 
@@ -549,10 +603,64 @@ function formatAsMarkdown(data: any): string {
   md += `**Total Runs:** ${data.status.num_task_runs}\n`;
   md += `**Running:** ${data.status.task_run_status_counts.running || 0}\n`;
   md += `**Completed:** ${data.status.task_run_status_counts.completed || 0}\n`;
-  md += `**Created:** ${data.created_at}\n\n`;
+  md += `**Failed:** ${data.status.task_run_status_counts.failed || 0}\n`;
+  md += `**Created:** ${data.created_at}\n`;
+
+  // Add status message if available
+  if (data.status.status_message) {
+    md += `**Status Message:** ${data.status.status_message}\n`;
+  }
+
+  md += `\n`;
+
+  // Show overall warnings if any runs have warnings
+  const runsWithWarnings = data.runs.filter(
+    (run) => run.warnings && run.warnings.length > 0
+  );
+  if (runsWithWarnings.length > 0) {
+    md += `## ⚠️ Warnings Summary\n\n`;
+    md += `**Runs with warnings:** ${runsWithWarnings.length} of ${data.runs.length}\n\n`;
+
+    // Collect unique warning types
+    const warningTypes = new Set();
+    runsWithWarnings.forEach((run) => {
+      run.warnings.forEach((warning) => warningTypes.add(warning.type));
+    });
+
+    md += `**Warning types encountered:** ${Array.from(warningTypes).join(
+      ", "
+    )}\n\n`;
+  }
+
+  // Show overall errors if any runs failed
+  const failedRuns = data.runs.filter((run) => run.status === "failed");
+  if (failedRuns.length > 0) {
+    md += `## ❌ Errors Summary\n\n`;
+    md += `**Failed runs:** ${failedRuns.length} of ${data.runs.length}\n\n`;
+
+    // Collect unique error types
+    const errorTypes = new Set();
+    failedRuns.forEach((run) => {
+      if (run.error?.detail?.errors) {
+        run.error.detail.errors.forEach((error) =>
+          errorTypes.add(error.error || "Unknown error")
+        );
+      } else if (run.error?.message) {
+        errorTypes.add(run.error.message);
+      }
+    });
+
+    if (errorTypes.size > 0) {
+      md += `**Error types encountered:**\n`;
+      Array.from(errorTypes).forEach((errorType) => {
+        md += `- ${errorType}\n`;
+      });
+      md += `\n`;
+    }
+  }
 
   if (data.results.length === 0) {
-    md += `*No results yet...*\n`;
+    md += `## Results\n\n*No results yet...*\n`;
     return md;
   }
 
@@ -569,29 +677,69 @@ function formatAsMarkdown(data: any): string {
   const properties = Array.from(allProps);
 
   md += `## Results\n\n`;
+
+  // Add legend for status and confidence indicators
+  md += `**Legend:**\n`;
+  md += `- Status: ✅ Completed | ❌ Failed | 🟡 Running/Queued\n`;
+  md += `- Confidence: 🟢 High | 🟡 Medium | 🔴 Low\n`;
+  md += `- ⚠️ = Has warnings | 🚨 = Has errors\n\n`;
+
   md += `| Status | ${properties
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" | ")} |\n`;
   md += `|--------|${properties.map(() => "--------").join("|")}|\n`;
 
   for (const result of data.results) {
-    const statusEmoji =
-      result.status === "completed"
-        ? "✅"
-        : result.status === "failed"
-        ? "❌"
-        : "🟡";
-
-    // Get the full run data for this result to access confidence info
+    // Get the full run data for this result to access confidence, warning and error info
     const fullRun = data.runs.find((run) => run.run_id === result.$id);
 
-    const status =
-      result.status === "failed"
-        ? `failed ${
-            fullRun?.error?.detail?.errors?.map((x) => x.error).join("<br>") ||
-            ""
-          }`
-        : result.status;
+    let statusEmoji = "";
+    let statusText = result.status;
+
+    switch (result.status) {
+      case "completed":
+        statusEmoji = "✅";
+        break;
+      case "failed":
+        statusEmoji = "❌";
+        break;
+      case "running":
+        statusEmoji = "🟡";
+        break;
+      case "queued":
+        statusEmoji = "🟡";
+        statusText = "queued";
+        break;
+      default:
+        statusEmoji = "🟡";
+    }
+
+    // Add warning/error indicators
+    let indicators = "";
+    if (fullRun?.warnings && fullRun.warnings.length > 0) {
+      indicators += " ⚠️";
+    }
+    if (result.status === "failed") {
+      indicators += " 🚨";
+    }
+
+    // Format error details for failed runs
+    if (result.status === "failed" && fullRun?.error) {
+      let errorDetails = "";
+      if (fullRun.error.detail?.errors) {
+        errorDetails = fullRun.error.detail.errors
+          .map((e) => e.error || "Unknown error")
+          .join(", ");
+      } else if (fullRun.error.message) {
+        errorDetails = fullRun.error.message;
+      }
+
+      if (errorDetails.length > 100) {
+        errorDetails = errorDetails.substring(0, 100) + "...";
+      }
+
+      statusText = `failed: ${errorDetails}`;
+    }
 
     const values = properties.map((prop) => {
       const value = result[prop];
@@ -623,13 +771,64 @@ function formatAsMarkdown(data: any): string {
         }
       }
 
-      // Replace newlines with <br> to maintain table structure while preserving line breaks
+      // Truncate very long values but preserve line breaks with <br>
+      if (valueStr.length > 200) {
+        valueStr = valueStr.substring(0, 200) + "...";
+      }
       valueStr = valueStr.replace(/\n/g, "<br>");
 
       return confidenceEmoji + valueStr;
     });
 
-    md += `| ${statusEmoji} ${status} | ${values.join(" | ")} |\n`;
+    md += `| ${statusEmoji} ${statusText}${indicators} | ${values.join(
+      " | "
+    )} |\n`;
+  }
+
+  // Add detailed warnings section if there are any
+  if (runsWithWarnings.length > 0) {
+    md += `\n## ⚠️ Detailed Warnings\n\n`;
+
+    runsWithWarnings.forEach((run, index) => {
+      md += `### Run ${index + 1}: ${run.run_id}\n\n`;
+      run.warnings.forEach((warning) => {
+        md += `- **${warning.type}**: ${warning.message}\n`;
+        if (warning.detail) {
+          md += `  - Detail: ${JSON.stringify(warning.detail)}\n`;
+        }
+      });
+      md += `\n`;
+    });
+  }
+
+  // Add detailed errors section if there are any
+  if (failedRuns.length > 0) {
+    md += `\n## 🚨 Detailed Errors\n\n`;
+
+    failedRuns.forEach((run, index) => {
+      md += `### Failed Run ${index + 1}: ${run.run_id}\n\n`;
+      if (run.error) {
+        md += `**Error ID:** ${run.error.ref_id}\n\n`;
+        md += `**Message:** ${run.error.message}\n\n`;
+
+        if (run.error.detail?.errors) {
+          md += `**Specific Errors:**\n`;
+          run.error.detail.errors.forEach((error) => {
+            md += `- ${error.error}\n`;
+          });
+        }
+
+        if (run.error.detail && Object.keys(run.error.detail).length > 1) {
+          md += `\n**Additional Details:**\n`;
+          md += `\`\`\`json\n${JSON.stringify(
+            run.error.detail,
+            null,
+            2
+          )}\n\`\`\`\n`;
+        }
+      }
+      md += `\n`;
+    });
   }
 
   return md;

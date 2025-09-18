@@ -340,12 +340,16 @@ export async function parallelOauthProvider(request, kv, secret, config) {
 
       if (
         redirectUrl.protocol === "http:" &&
-        redirectUrl.hostname !== "localhost"
+        redirectUrl.hostname !== "localhost" &&
+        redirectUrl.hostname !== "127.0.0.1"
       ) {
-        return new Response("Invalid redirect_uri: must use HTTPS", {
-          status: 400,
-          headers: getCorsHeaders(),
-        });
+        return new Response(
+          "Invalid redirect_uri: must use HTTPS unless localhost/127.0.0.1",
+          {
+            status: 400,
+            headers: getCorsHeaders(),
+          }
+        );
       }
     } catch {
       return new Response("Invalid redirect_uri format", {
@@ -488,9 +492,16 @@ export async function parallelOauthProvider(request, kv, secret, config) {
             color: #1d1b16;
         }
 
-        input[type="password"] {
+        .input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="password"],
+        input[type="text"] {
             width: 100%;
-            padding: 12px 16px;
+            padding: 12px 50px 12px 16px;
             font-family: 'FT System Mono', monospace;
             font-size: 14px;
             border: 2px solid #d8d0bf;
@@ -500,13 +511,38 @@ export async function parallelOauthProvider(request, kv, secret, config) {
             transition: border-color 0.2s;
         }
 
-        input[type="password"]:focus {
+        input[type="password"]:focus,
+        input[type="text"]:focus {
             outline: none;
             border-color: #fb631b;
         }
 
-        input[type="password"]::placeholder {
+        input[type="password"]::placeholder,
+        input[type="text"]::placeholder {
             color: #d8d0bf;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d8d0bf;
+            transition: color 0.2s;
+        }
+
+        .toggle-password:hover {
+            color: #1d1b16;
+        }
+
+        .toggle-password svg {
+            width: 20px;
+            height: 20px;
         }
 
         .button {
@@ -552,33 +588,6 @@ export async function parallelOauthProvider(request, kv, secret, config) {
             margin-top: 8px;
             text-align: left;
         }
-
-        .existing-token {
-            background: rgba(251, 99, 27, 0.1);
-            border: 2px solid #fb631b;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 24px;
-            font-size: 14px;
-            text-align: left;
-        }
-
-        .existing-token h3 {
-            margin-bottom: 8px;
-            color: #fb631b;
-        }
-
-        .use-existing-btn {
-            background: transparent;
-            color: #fb631b;
-            border: 2px solid #fb631b;
-            margin-bottom: 16px;
-        }
-
-        .use-existing-btn:hover {
-            background: #fb631b;
-            color: #fcfcfa;
-        }
     </style>
 </head>
 <body>
@@ -590,11 +599,6 @@ export async function parallelOauthProvider(request, kv, secret, config) {
             Do you trust <strong>${safeClientId}</strong> to access your Parallel.ai API key?
         </div>
         
-        <div id="existingTokenSection" class="existing-token" style="display: none;">
-            <h3>Existing Access Token Found</h3>
-            <div>You already have an active access token. You can use it or create a new one.</div>
-        </div>
-        
         <form id="authForm">
             <div class="checkbox-group">
                 <label class="checkbox-container" for="trustCheckbox">
@@ -603,19 +607,27 @@ export async function parallelOauthProvider(request, kv, secret, config) {
                 </label>
             </div>
 
-            <button type="button" class="button use-existing-btn" id="useExistingBtn" style="display: none;">
-                Use Existing Token
-            </button>
-
             <div class="form-group">
                 <label for="apiKey">Your Parallel.ai API Key</label>
-                <input 
-                    type="password" 
-                    id="apiKey" 
-                    name="apiKey" 
-                    placeholder="Enter your API key..."
-                    required
-                />
+                <div class="input-container">
+                    <input 
+                        type="password" 
+                        id="apiKey" 
+                        name="apiKey" 
+                        placeholder="Enter your API key..."
+                        required
+                    />
+                    <button type="button" class="toggle-password" id="togglePassword" title="Show/Hide password">
+                        <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg id="eyeOffIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                    </button>
+                </div>
                 <div id="error" class="error"></div>
                 <a href="https://platform.parallel.ai/settings?tab=api-keys" class="link" target="_blank">Go to Parallel API Keys →</a>
             </div>
@@ -624,47 +636,51 @@ export async function parallelOauthProvider(request, kv, secret, config) {
                 Continue
             </button>
         </form>
-        
-
     </div>
 
     <script>
         ${tokenScript}
 
-        // Handle existing token
-        const existingTokenSection = document.getElementById('existingTokenSection');
-        const useExistingBtn = document.getElementById('useExistingBtn');
-        
+        // Pre-fill existing token if available
+        const apiKeyInput = document.getElementById('apiKey');
         if (window.existingAccessToken) {
-            existingTokenSection.style.display = 'block';
-            useExistingBtn.style.display = 'block';
+            apiKeyInput.value = window.existingAccessToken;
         }
+
+        // Handle password toggle
+        const togglePassword = document.getElementById('togglePassword');
+        const eyeIcon = document.getElementById('eyeIcon');
+        const eyeOffIcon = document.getElementById('eyeOffIcon');
+
+        togglePassword.addEventListener('click', () => {
+            const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            apiKeyInput.setAttribute('type', type);
+            
+            if (type === 'text') {
+                eyeIcon.style.display = 'none';
+                eyeOffIcon.style.display = 'block';
+            } else {
+                eyeIcon.style.display = 'block';
+                eyeOffIcon.style.display = 'none';
+            }
+        });
 
         // Handle checkbox state
         const trustCheckbox = document.getElementById('trustCheckbox');
         const submitBtn = document.getElementById('submitBtn');
-        const apiKeyInput = document.getElementById('apiKey');
 
         function updateSubmitButton() {
             const apiKey = apiKeyInput.value.trim();
             const isChecked = trustCheckbox.checked;
             
             submitBtn.disabled = !isChecked || !apiKey;
-            useExistingBtn.disabled = !isChecked;
         }
 
         trustCheckbox.addEventListener('change', updateSubmitButton);
         apiKeyInput.addEventListener('input', updateSubmitButton);
 
-        // Use existing token
-        useExistingBtn.addEventListener('click', async () => {
-            if (!trustCheckbox.checked) {
-                document.getElementById('error').textContent = 'Please confirm you trust this application';
-                return;
-            }
-
-            await authorizeWithToken(window.existingAccessToken);
-        });
+        // Initial check for submit button state
+        updateSubmitButton();
 
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -685,12 +701,6 @@ export async function parallelOauthProvider(request, kv, secret, config) {
             submitBtn.disabled = true;
             submitBtn.textContent = 'Authorizing...';
             errorDiv.textContent = '';
-            
-            await authorizeWithToken(apiKey);
-        });
-
-        async function authorizeWithToken(apiKey) {
-            const errorDiv = document.getElementById('error');
             
             try {
                 // Generate 32-character auth code
@@ -727,12 +737,12 @@ export async function parallelOauthProvider(request, kv, secret, config) {
                 window.location.href = redirectUrl.toString();
                 
             } catch (error) {
-             console.error(error);
+                console.error(error);
                 errorDiv.textContent = 'Authorization failed. Please try again.';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Continue';
             }
-        }
+        });
     </script>
 </body>
 </html>`;

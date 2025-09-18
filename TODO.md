@@ -1,22 +1,25 @@
-# Last Things
+# Task MCP (2025-09-18)
 
-Remove UX of "use previous key", just add eye to view/hide previous one in input.
+**Improve oauth provider setup**
 
-Must have the same workings as `parallel-provider`. Test it actually works everywhere including cursor/vscode.
+- ✅ Use simplerauth in `task-mcp` and test again for it to work everywhere!
+- ✅ Remove UX of "use previous key", just add eye to view/hide previous one in input.
+- ✅ `simplerauth-client`: needs `pathPrefix` or to use `.well-known` to know where to go (will require extra fetch)
+- ✅ `simplerauth-client` Must have the same workings as using `parallel-oauth-provider` directly. Test it actually works everywhere including cursor/vscode
 
-Use simplerauth in `task-mcp` and test again for it to work everywhere!
+**Improve task MCP**
 
-Replace link with `platform.parallel.ai/view/task-run-groups/{task_run_group_id}`
+- ✅ Remove callback functionality; instruct manual polling, later replace with [automatic mcp polling when this SEP lands](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1391)
+- Ensure task warnings/errors show up in the markdown for easier iteration
+- Way to retrieve basis for specific row (by id) or field (by field name)
+- Maybe: provide a way to add `limit` of amount of tasks to be done such that we can pass low-token URL with all rows, yet do just x amount of tasks
 
-`simplerauth-client`: needs `pathPrefix` or to use `.well-known` to know where to go (will require extra fetch)
+# After manvesh deploys Task Group Link (Friday)
 
-Create PR for new MCP docs: https://docs.parallel.ai/features/remote-mcp
-
-After the Task MCP works, create instructions for dogfooding (and what I want them to test)
-
-# SSE Cookbook
-
-Do this today
+- ✅ Improve README and repo name/structure
+- Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
+- Create Draft PR for new MCP docs: https://docs.parallel.ai/features/remote-mcp
+- Create `DOGFOODING.md` guide (test myself first) and share in slack
 
 # Sleep MCP
 

@@ -308,6 +308,7 @@
       "get": {
         "summary": "Get Task Group Results as Markdown",
         "operationId": "getTaskGroupResultsMarkdown",
+        "description": "Get Task Group Results as Markdown",
         "parameters": [
           {
             "name": "taskGroupId",
