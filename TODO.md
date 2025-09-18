@@ -15,6 +15,8 @@
 # After manvesh deploys Task Group Link (Friday)
 
 - ✅ Improve README and repo name/structure
+- ✅ rename to search-mcp.parallel.ai and task-mcp.parallel.ai
+- ✅ deploy both on smithery
 - Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
 - Create Draft PR for new MCP docs: https://docs.parallel.ai/features/remote-mcp
 - Create `DOGFOODING.md` guide (test myself first) and share in Slack

@@ -6,7 +6,5 @@
   "compatibility_date": "2025-09-10",
   "observability": { "logs": { "enabled": true } },
   "env": { "dev": { "routes": [] } },
-  "routes": [
-    { "custom_domain": true, "pattern": "search-mcp-proxy.parallel.ai" }
-  ]
+  "routes": [{ "custom_domain": true, "pattern": "search-mcp.parallel.ai" }]
 }
