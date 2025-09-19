@@ -43,3 +43,25 @@ OAuth
 - ✅ Put oauth provider at https://parallel.simplerauth.com (central is good since it will be swapped by one with internal connection)
 - ✅ Search MCP proxy server
 - ✅ Use oauth provider from login.parallel.ai instead for `task-mcp`
+
+# Task MCP (2025-09-18)
+
+**Improve oauth provider setup**
+
+- ✅ Use simplerauth in `task-mcp` and test again for it to work everywhere!
+- ✅ Remove UX of "use previous key", just add eye to view/hide previous one in input.
+- ✅ `simplerauth-client`: needs `pathPrefix` or to use `.well-known` to know where to go (will require extra fetch)
+- ✅ `simplerauth-client` Must have the same workings as using `parallel-oauth-provider` directly. Test it actually works everywhere including cursor/vscode
+
+**Improve task MCP**
+
+- ✅ Remove callback functionality; instruct manual polling, later replace with [automatic mcp polling when this SEP lands](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1391)
+- ✅ Ensure task warnings/errors show up in the markdown for easier iteration
+
+**Deployment**
+
+- ✅ Improve README and repo name/structure
+- ✅ rename to search-mcp.parallel.ai and task-mcp.parallel.ai
+- ✅ deploy both on smithery
+- ✅ Create Draft PR for new MCP docs: https://github.com/shapleyai/documentation/pull/226
+- ✅ Create dogfooding guide (test myself first) and share in Slack

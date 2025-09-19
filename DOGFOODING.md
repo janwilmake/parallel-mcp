@@ -15,7 +15,7 @@ https://chatgpt.com/share/68c96e8c-4898-800b-9c58-f01007ee015d
 
 # Cursor
 
-[This link](cursor://anysphere.cursor-deeplink/mcp/install?name=Parallel%20Tasks&config=eyJ1cmwiOiJodHRwczovL211bHRpdGFzay1kZW1vLnBhcmFsbGVsLmFpL21jcCJ9) should work (using oauth to directly install it)
+[This link](cursor://anysphere.cursor-deeplink/mcp/install?name=Parallel%20Task%20MCP&config=eyJ1cmwiOiJodHRwczovL3Rhc2stbWNwLnBhcmFsbGVsLmFpL21jcCJ9) should work (using oauth to directly install it)
 
 The problem with cursor was the redirect uri: `cursor://anysphere.cursor-retrieval`. This wasn't allowed, but I've edited the provider to basically ignore the client_id completely and base the dialog on the callback URI instead.
 

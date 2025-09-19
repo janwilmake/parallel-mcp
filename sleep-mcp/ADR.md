@@ -15,3 +15,9 @@ Friday if no oauth yet:
   - requires with-mcp or openapi-to-mcp to support `?apiKey` (and `.well-known/mcp-config`)
 - Test if adding `/.well-known/mcp-config` works for curlmcp. If so, ask saunack to add to https://docs.parallel.ai/features/remote-mcp.
 - Add https://docs.parallel.ai/features/remote-mcp to MCP registry https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/
+
+## Async tool execution
+
+https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1391
+
+Ultimately this is gonna be the best way to do it.

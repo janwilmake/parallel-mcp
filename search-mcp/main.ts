@@ -3,21 +3,18 @@ export default {
   fetch: withSimplerAuth(
     async (request, env, ctx) => {
       const url = new URL(request.url);
-      if (url.pathname === "/mcp") {
-        const headers = new Headers(request.headers);
-        headers.set(
-          "x-api-key",
-          request.headers.get("Authorization")?.slice("Bearer ".length)
-        );
-        headers.delete("Authorization");
+      const headers = new Headers(request.headers);
+      const apiKey = request.headers.get("Authorization")?.slice(7);
+      if (!apiKey) {
+        return new Response("Unauthorized", { status: 401 });
+      }
 
+      if (url.pathname === "/mcp") {
+        headers.set("x-api-key", apiKey);
+        headers.delete("Authorization");
         const response = await fetch(
           "https://mcp.parallel.ai/v1beta/search_mcp/",
-          {
-            body: request.body,
-            headers,
-            method: request.method,
-          }
+          { body: request.body, headers, method: request.method }
         );
 
         return response;
@@ -27,7 +24,6 @@ export default {
     {
       isLoginRequired: false,
       oauthProviderHost: "parallel.simplerauth.com",
-      sameSite: "Strict",
       scope: "api",
     }
   ),

@@ -452,7 +452,7 @@ async function handleMultitask(request: Request): Promise<Response> {
 
     // Return detailed response based on success/failure
     if (batchResults.every((b) => b.success)) {
-      return new Response(JSON.stringify(successResponse), {
+      return new Response(successResponse.task_group_url, {
         status: 200,
         headers: { "content-type": "application/json" },
       });
