@@ -1,3 +1,7 @@
+# Bugs
+
+- Logo doesnt show up for task-mcp.parallel.ai
+
 # Demos
 
 Goal: getting hands dirty, lots of experimentation
@@ -9,6 +13,8 @@ Think about:
 - authentic use cases
 
 <!-- It's demo time. The thing fucking works! Ideally I make highly authentic demos that show the benefit and experimental process. This is a testing ground. The ones that get engagement can be turned into professional blogs with more enterprise use-case -->
+
+- vscode demo: new!
 
 - **Subagent (Claude Code or Cursor)** - Put this MCP in a subagent template. The process is always to use search first to make a list, then do a Parallel Task, then use the Alarm MCP (or just `sleep 900`), and get back with final results https://docs.claude.com/en/docs/claude-code/sub-agents#available-tools. This can be added as description to the agent context. The input can come from a JSON file, the outputs can be written to a JSON files as well. Ideally we perform an experiment of choosing processors here: it can be an example of an experiemnt where we compare chaining tasks with doing one bigger task.
 
@@ -24,11 +30,13 @@ Think about:
 - Get personal X network into CRM, then research them more (find other owned socials, find company, etc)
 - Make agent-friendly forward thinking assessment score for any company. KYB: derisk the future!
 
-# ⏳ After Manvesh deploys Task Group Link (Friday)
+# ⏳ After Manvesh deploys Task Group Link (Monday)
 
 - Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
 - Put login provider at `oauth.parallel.ai`
 - Replace `parallel.simplerauth.com` with `platform.parallel.ai` after it works!
+- Get merged: https://github.com/shapleyai/documentation/pull/221
+- Talk to travers
 
 # Directories
 
@@ -44,7 +52,7 @@ Client without registry:
 
 Client Registries:
 
-- vscode - https://github.com/mcp
+- vscode - https://github.com/mcp (needs mcp repo to be oss)
 - cursor - https://docs.cursor.com/en/tools/mcp and https://docs.claude.com/en/docs/claude-code/mcp#popular-mcp-servers
 - claude (code) - https://docs.claude.com/en/docs/agents-and-tools/remote-mcp-servers
 - https://lobehub.com/mcp

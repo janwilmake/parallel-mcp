@@ -8,6 +8,153 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 - OpenAPI JSON: https://task-mcp.parallel.ai/openapi.json
 - Design SPEC (outdated): https://task-mcp.parallel.ai/SPEC.md
 
+# Installation Guide
+
+**Server Name**: `Parallel Task MCP`  
+**Server URL**: `https://task-mcp.parallel.ai/mcp`
+
+## Cursor
+
+[🔗 Install via deep link](https://cursor.com/en/install-mcp?name=Parallel Task MCP&config=eyJ1cmwiOiJodHRwczovL3Rhc2stbWNwLnBhcmFsbGVsLmFpL21jcCJ9)
+
+**Instructions:** Add to `~/.cursor/mcp.json` or `.cursor/mcp.json` (project-specific)
+
+**Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "Parallel Task MCP": {
+      "url": "https://task-mcp.parallel.ai/mcp"
+    }
+  }
+}
+```
+
+---
+
+## VS Code
+
+[🔗 Install via deep link](vscode:mcp/install?%7B%22name%22%3A%22Parallel%20Task%20MCP%22%2C%22gallery%22%3Afalse%2C%22url%22%3A%22https%3A%2F%2Ftask-mcp.parallel.ai%2Fmcp%22%7D)
+
+**Instructions:** Add to VS Code settings.json
+
+**Configuration:**
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "Parallel Task MCP": {
+        "type": "http",
+        "url": "https://task-mcp.parallel.ai/mcp"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Claude.ai
+
+**Instructions:** Go to https://claude.ai/settings/connectors and select 'add custom connector'. Fill in:
+
+- **Name**: Parallel Task MCP
+- **URL**: https://task-mcp.parallel.ai/mcp
+
+---
+
+## ChatGPT.com
+
+**Instructions:** First, go to 'Settings -> Connectors -> Advanced Settings' and turn on 'Developer Mode'.
+
+Then, in connector settings click 'create'.
+
+Fill in:
+
+- **Name**: Parallel Task MCP
+- **URL**: https://task-mcp.parallel.ai/mcp
+- **Authentication**: OAuth
+
+In a new chat ensure developer mode is turned on with the connector(s) selected.
+
+---
+
+## Claude Code
+
+**Command:**
+
+```bash
+claude mcp add --transport http Parallel Task MCP https://task-mcp.parallel.ai/mcp
+```
+
+**Instructions:** Run the command in your terminal
+
+---
+
+## Windsurf
+
+**Instructions:** Add to your Windsurf MCP configuration
+
+**Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "Parallel Task MCP": {
+      "serverUrl": "https://task-mcp.parallel.ai/mcp"
+    }
+  }
+}
+```
+
+---
+
+## Cline
+
+**Instructions:** Go to MCP Servers section → Remote Servers → Edit Configuration
+
+**Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "Parallel Task MCP": {
+      "url": "https://task-mcp.parallel.ai/mcp",
+      "type": "streamableHttp"
+    }
+  }
+}
+```
+
+---
+
+## Gemini CLI
+
+**Instructions:** Add to `~/.gemini/settings.json`
+
+**Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "Parallel Task MCP": {
+      "httpUrl": "https://task-mcp.parallel.ai/mcp"
+    }
+  }
+}
+```
+
+---
+
+## Claude Desktop
+
+**Instructions:** Go to Settings → Connectors → Add Custom Connector and fill in:
+
+- **Name**: Parallel Task MCP
+- **URL**: https://task-mcp.parallel.ai/mcp
+
 # How to test MCP locally
 
 - On localhost, run `wrangler dev --env dev`
