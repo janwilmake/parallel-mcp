@@ -8,7 +8,7 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 - OpenAPI JSON: https://task-mcp.parallel.ai/openapi.json
 - Design SPEC (outdated): https://task-mcp.parallel.ai/SPEC.md
 
-# Installation Guide
+# MCP Server Installation Guide
 
 **Server Name**: `Parallel Task MCP`  
 **Server URL**: `https://task-mcp.parallel.ai/mcp`
@@ -35,7 +35,7 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 
 ## VS Code
 
-[🔗 Install via deep link](vscode:mcp/install?%7B%22name%22%3A%22Parallel%20Task%20MCP%22%2C%22gallery%22%3Afalse%2C%22url%22%3A%22https%3A%2F%2Ftask-mcp.parallel.ai%2Fmcp%22%7D)
+[🔗 Install via deep link](https://insiders.vscode.dev/redirect/mcp/install?name=Parallel%20Task%20MCP&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Ftask-mcp.parallel.ai%2Fmcp%22%7D)
 
 **Instructions:** Add to VS Code settings.json
 
