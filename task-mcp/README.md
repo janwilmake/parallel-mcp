@@ -15,7 +15,7 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 
 ## Cursor
 
-[🔗 Install via deep link](https://cursor.com/en/install-mcp?name=Parallel Task MCP&config=eyJ1cmwiOiJodHRwczovL3Rhc2stbWNwLnBhcmFsbGVsLmFpL21jcCJ9)
+[🔗 Install via deep link](https://cursor.com/en/install-mcp?name=Parallel%20Task%20MCP&config=eyJ1cmwiOiJodHRwczovL3Rhc2stbWNwLnBhcmFsbGVsLmFpL21jcCJ9)
 
 **Instructions:** Add to `~/.cursor/mcp.json` or `.cursor/mcp.json` (project-specific)
 
