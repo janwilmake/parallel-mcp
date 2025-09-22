@@ -1,10 +1,19 @@
-# Bugs
+# Improvements (GOAL: Task Group MCP stable, works with reminder after it's done)
 
-- Logo doesnt show up for task-mcp.parallel.ai
+🤔 **Devtool, no-coder target audience, or both?** - Determine what the target user is: developer building an app with parallel (devtool) or no-coder that doesn't know anything about the tasks? The latter needs better guardrails and a simpler API with less control.
 
-# Demos
+- Put login provider at `oauth.parallel.ai` for better trust
+- Logo doesnt show up for task-mcp.parallel.ai. How is logo found?
+- Get merged: https://github.com/shapleyai/documentation/pull/221
+- Improve prompt https://claude.ai/share/5236f5b4-0356-4782-bd96-f9cfb800c932
+- Ensure the processor is added as metadata, and shown in markdown response
+- Way to retrieve basis for specific row (by id) or field (by field name)
+- Maybe: provide a way to add `limit` of amount of tasks to be done such that we can pass low-token URL with all rows, yet do just x amount of tasks
+- ⏳ After Manvesh deploys Task Group Link (Tuesday?): Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
 
-Goal: getting hands dirty, lots of experimentation
+# Testing & Demos
+
+Goal: getting hands dirty, lots of experimentation. Test more, uncover failure modes, fix these.
 
 Think about:
 
@@ -20,23 +29,15 @@ Think about:
 
 - **CRM (Attio) input**. First, get the people that I follow on X into a CRM. Ask to enrich my people with social media based on logical proof, put back a summary into CRM.
 
-- **ChatGPT demo**: user uploads CSV and says what we need to add, and instructions on repeating with first 5 until quality is good. Task Group API is used repeatedly. Finally, perform batch API on all rows. Download final CSV.
+- **ChatGPT Demo**: user uploads CSV and says what we need to add, and instructions on repeating with first 5 until quality is good. Task Group API is used repeatedly. Finally, perform batch API on all rows. Download final CSV.
 
-- **Wassist/Claude Demo**: use Parallel Search to find all MCP directories. Then determine an SEO strategy for each via a task. Output is a small actionable list of tasks.
+- **Claude Demo**: use Parallel Search to find all MCP directories. Then determine an SEO strategy for each via a task. Output is a small actionable list of tasks.
 
 **Authentic Use cases:**
 
 - Based People: task chaining: how to more effectively prototype different strategies?!
 - Get personal X network into CRM, then research them more (find other owned socials, find company, etc)
 - Make agent-friendly forward thinking assessment score for any company. KYB: derisk the future!
-
-# ⏳ After Manvesh deploys Task Group Link (Monday)
-
-- Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
-- Put login provider at `oauth.parallel.ai`
-- Replace `parallel.simplerauth.com` with `platform.parallel.ai` after it works!
-- Get merged: https://github.com/shapleyai/documentation/pull/221
-- Talk to travers
 
 # Directories
 
@@ -56,7 +57,6 @@ Client Registries:
 - cursor - https://docs.cursor.com/en/tools/mcp and https://docs.claude.com/en/docs/claude-code/mcp#popular-mcp-servers
 - claude (code) - https://docs.claude.com/en/docs/agents-and-tools/remote-mcp-servers
 - https://lobehub.com/mcp
-- https://wassist.app/mcp/
 
 Registries:
 

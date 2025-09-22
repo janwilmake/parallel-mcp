@@ -56,15 +56,6 @@ This simplification is designed to allow doing 80% of what's possible in a minim
 
 ---
 
-## Claude.ai
-
-**Instructions:** Go to https://claude.ai/settings/connectors and select 'add custom connector'. Fill in:
-
-- **Name**: Parallel Task MCP
-- **URL**: https://task-mcp.parallel.ai/mcp
-
----
-
 ## ChatGPT.com
 
 **Instructions:** First, go to 'Settings -> Connectors -> Advanced Settings' and turn on 'Developer Mode'.
@@ -81,6 +72,15 @@ In a new chat ensure developer mode is turned on with the connector(s) selected.
 
 ---
 
+## Claude.ai
+
+**Instructions:** Go to https://claude.ai/settings/connectors and select 'add custom connector'. Fill in:
+
+- **Name**: Parallel Task MCP
+- **URL**: https://task-mcp.parallel.ai/mcp
+
+---
+
 ## Claude Code
 
 **Command:**
@@ -90,6 +90,15 @@ claude mcp add --transport http Parallel Task MCP https://task-mcp.parallel.ai/m
 ```
 
 **Instructions:** Run the command in your terminal
+
+---
+
+## Claude Desktop
+
+**Instructions:** Go to Settings → Connectors → Add Custom Connector and fill in:
+
+- **Name**: Parallel Task MCP
+- **URL**: https://task-mcp.parallel.ai/mcp
 
 ---
 
@@ -147,13 +156,6 @@ claude mcp add --transport http Parallel Task MCP https://task-mcp.parallel.ai/m
 ```
 
 ---
-
-## Claude Desktop
-
-**Instructions:** Go to Settings → Connectors → Add Custom Connector and fill in:
-
-- **Name**: Parallel Task MCP
-- **URL**: https://task-mcp.parallel.ai/mcp
 
 # How to test MCP locally
 
