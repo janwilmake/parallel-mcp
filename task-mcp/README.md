@@ -7,6 +7,7 @@ Designed for tabular data enrichment, this MCP is works best together with an MC
 - OpenAPI Playground: https://task-mcp.parallel.ai/openapi
 - OpenAPI JSON: https://task-mcp.parallel.ai/openapi.json
 - Design SPEC (outdated): [SPEC.md](SPEC.md)
+- MCP docs: https://docs.parallel.ai/features/remote-mcp
 - MCP address: `https://search-mcp-proxy.parallel.ai/mcp`
 
 [![Install Parallel Task MCP](https://img.shields.io/badge/Install_MCP-Parallel%20Task%20MCP-black?style=for-the-badge)](https://installthismcp.com/Parallel%20Task%20MCP?url=https%3A%2F%2Ftask-mcp.parallel.ai%2Fmcp)
