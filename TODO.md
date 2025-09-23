@@ -1,25 +1,7 @@
-# Improvements (GOAL: Task Group MCP stable, works with reminder after it's done)
-
-🤔 **Devtool, no-coder target audience, or both?** - Determine what the target user is: developer building an app with parallel (devtool) or no-coder that doesn't know anything about the tasks? The latter needs better guardrails and a simpler API with less control.
-
-- ✅ Put login provider at `oauth.parallel.ai` for better trust
-- ✅ Remove de-emphasize chatgpt from docs. make it a group table with 2 mcps
-- ✅ Get merged: https://github.com/shapleyai/documentation/pull/221
-
-# Improve MCP
-
-- ✅ Ensure the processor is added as metadata, and all metadata is shown in markdown response
-- ✅ For the result markdown tool, add a way to retrieve the basis too, below the table, as JSON: optional parameter `basis?:"index:{number}"|"field:{string}"|"all"` for specific row (by index) or field (by field name) or all basis content. Ensure that when the table is shown, it shows the index as first column before status.
-- ✅ make parameter output work as the openapi suggests
-- ✅ Make output description task spec aware
-- ✅ Make processor description pricing aware
-- ✅ Add description for inputs to be cautious adding too many inputs at once unless the user explicitnly says all
-
 # Other
 
 - Iterate on SSE AGent
 - https://wilmake.slack.com/archives/C09807JBB26/p1758580675283749?thread_ts=1758571795.468469&cid=C09807JBB26
-- Logo doesnt show up for task-mcp.parallel.ai. How is logo found?
 - After Manvesh deploys Task Group Link: Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
 
 # Testing & Demos
