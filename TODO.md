@@ -2,14 +2,25 @@
 
 🤔 **Devtool, no-coder target audience, or both?** - Determine what the target user is: developer building an app with parallel (devtool) or no-coder that doesn't know anything about the tasks? The latter needs better guardrails and a simpler API with less control.
 
-- Put login provider at `oauth.parallel.ai` for better trust
+- ✅ Put login provider at `oauth.parallel.ai` for better trust
+- ✅ Remove de-emphasize chatgpt from docs. make it a group table with 2 mcps
+- ✅ Get merged: https://github.com/shapleyai/documentation/pull/221
+
+# Improve MCP
+
+- ✅ Ensure the processor is added as metadata, and all metadata is shown in markdown response
+- ✅ For the result markdown tool, add a way to retrieve the basis too, below the table, as JSON: optional parameter `basis?:"index:{number}"|"field:{string}"|"all"` for specific row (by index) or field (by field name) or all basis content. Ensure that when the table is shown, it shows the index as first column before status.
+- ✅ make parameter output work as the openapi suggests
+- ✅ Make output description task spec aware
+- ✅ Make processor description pricing aware
+- ✅ Add description for inputs to be cautious adding too many inputs at once unless the user explicitnly says all
+
+# Other
+
+- Iterate on SSE AGent
+- https://wilmake.slack.com/archives/C09807JBB26/p1758580675283749?thread_ts=1758571795.468469&cid=C09807JBB26
 - Logo doesnt show up for task-mcp.parallel.ai. How is logo found?
-- Get merged: https://github.com/shapleyai/documentation/pull/221
-- Improve prompt https://claude.ai/share/5236f5b4-0356-4782-bd96-f9cfb800c932
-- Ensure the processor is added as metadata, and shown in markdown response
-- Way to retrieve basis for specific row (by id) or field (by field name)
-- Maybe: provide a way to add `limit` of amount of tasks to be done such that we can pass low-token URL with all rows, yet do just x amount of tasks
-- ⏳ After Manvesh deploys Task Group Link (Tuesday?): Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
+- After Manvesh deploys Task Group Link: Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
 
 # Testing & Demos
 
@@ -25,11 +36,11 @@ Think about:
 
 - vscode demo: new!
 
+- **ChatGPT Demo**: user uploads CSV and says what we need to add, and instructions on repeating with first 5 until quality is good. Task Group API is used repeatedly. Finally, perform batch API on all rows. Download final CSV.
+
 - **Subagent (Claude Code or Cursor)** - Put this MCP in a subagent template. The process is always to use search first to make a list, then do a Parallel Task, then use the Alarm MCP (or just `sleep 900`), and get back with final results https://docs.claude.com/en/docs/claude-code/sub-agents#available-tools. This can be added as description to the agent context. The input can come from a JSON file, the outputs can be written to a JSON files as well. Ideally we perform an experiment of choosing processors here: it can be an example of an experiemnt where we compare chaining tasks with doing one bigger task.
 
 - **CRM (Attio) input**. First, get the people that I follow on X into a CRM. Ask to enrich my people with social media based on logical proof, put back a summary into CRM.
-
-- **ChatGPT Demo**: user uploads CSV and says what we need to add, and instructions on repeating with first 5 until quality is good. Task Group API is used repeatedly. Finally, perform batch API on all rows. Download final CSV.
 
 - **Claude Demo**: use Parallel Search to find all MCP directories. Then determine an SEO strategy for each via a task. Output is a small actionable list of tasks.
 
@@ -73,6 +84,7 @@ Registries:
 - https://glama.ai/mcp/servers
 - https://zed.dev/extensions?filter=context-servers
 - https://smithery.ai
+- https://klavis.ai
 
 Not sure:
 

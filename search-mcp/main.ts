@@ -23,7 +23,7 @@ export default {
     },
     {
       isLoginRequired: false,
-      oauthProviderHost: "parallel.simplerauth.com",
+      oauthProviderHost: "oauth.parallel.ai",
       scope: "api",
     }
   ),

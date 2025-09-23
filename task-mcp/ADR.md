@@ -1,3 +1,9 @@
+The task group API of Parallel is quite a lot to take in. With the Parallel Multitask API, the goal is to make the Task Group API as accessible as possible through a simplified 'multitask api', basically turning a task group APIs into a single API call.
+
+This simplification is designed to allow doing 80% of what's possible in a minimal API that allows a simple minimal interface to the entire workflow of the task group API suite. This type of minimal interface is ideal for use with MCP as also [advocated by Vercel](https://vercel.com/blog/the-second-wave-of-mcp-building-for-llms-not-developers#performance-improvements-with-workflow-tools), but it's also great for making it easier to build powerful apps on top of the Task Group API. For more low-level control, see https://docs.parallel.ai/
+
+![task-group-to-url](design.drawio.png)
+
 # Making Task Group Public
 
 The task run ID is 32 hex characters (https://letmeprompt.com/rules-httpsuithu-28mr600, https://letmeprompt.com/rules-httpsuithu-uq2vhc0) save to make publicly accessible assuming it's generated at random.

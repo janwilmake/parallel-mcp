@@ -29,26 +29,6 @@
     }
   ],
   "paths": {
-    "/": {
-      "get": {
-        "summary": "Get HTML Interface",
-        "description": "Serves the HTML interface for creating task groups",
-        "operationId": "getIndexHTML",
-        "responses": {
-          "200": {
-            "description": "HTML interface",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-
     "/v1beta/tasks/multitask": {
       "post": {
         "summary": "Create Multitask Group",
@@ -60,24 +40,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["inputs", "output_type"],
+                "required": ["inputs", "output_type", "output"],
                 "properties": {
                   "inputs": {
-                    "description": "Either a JSON array of input objects, or a URL that returns a JSON array of input objects",
-                    "oneOf": [
-                      {
-                        "type": "string",
-                        "format": "uri",
-                        "description": "URL that returns a JSON array of input objects"
-                      },
-                      {
-                        "type": "array",
-                        "items": {
-                          "type": "object"
-                        },
-                        "description": "Array of input objects"
-                      }
-                    ],
+                    "description": "JSON array of input objects to process. Start with a small batch (3-5 inputs) to test and validate results before scaling up, unless explicitly requested to process all inputs at once.",
+                    "type": "array",
+                    "items": { "type": "object" },
                     "example": [
                       {
                         "company_name": "Apple",
@@ -94,80 +62,24 @@
                     "enum": ["text", "json"],
                     "description": "Type of output expected from tasks"
                   },
-                  "output_description": {
+                  "output": {
                     "type": "string",
-                    "description": "Description of the desired output format or content",
-                    "example": "Extract company information including CEO, industry, and revenue"
-                  },
-                  "output_schema": {
-                    "type": "object",
-                    "description": "JSON schema for structured output (only used when output_type is 'json'). Please note that things like minimumItems or format aren't supported",
-                    "example": {
-                      "type": "object",
-                      "properties": {
-                        "company_name": { "type": "string" },
-                        "ceo": { "type": "string" },
-                        "industry": { "type": "string" }
-                      }
-                    }
+                    "description": "Defines the desired output format and structure. Can be either:\n\n**Text Description:** Simple description of what you want extracted (e.g., 'Extract company CEO, industry, and headquarters location')\n\n**JSON Schema:** For structured output when output_type is 'json'. Follow these best practices:\n- Use flat object structure with descriptive field names (e.g., 'ceo_name' not 'name')\n- Include detailed 'description' fields with Entity + Action + Specifics + Error Handling\n- Specify data formats clearly (dates as YYYY-MM-DD, ranges with units)\n- Include all fields in 'required' array and set 'additionalProperties: false'\n- Avoid deeply nested structures and unsupported keywords (minLength, pattern, etc.)\n- Don't include 'reasoning' or 'confidence_score' fields (automatically provided in basis)\n\n**Schema Requirements:**\n- Root type must be 'object' with properties\n- Max 5 levels nesting, 100 total properties\n- Max 15,000 chars total string length\n- All fields must be in required array\n\n**Example JSON Schema:**\n```json\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"ceo_name\": {\n      \"type\": \"string\",\n      \"description\": \"Current CEO full name from company website or recent news. If unavailable, return 'Not Available'.\"\n    },\n    \"annual_revenue_2024\": {\n      \"type\": \"string\", \n      \"description\": \"2024 revenue in millions USD format (e.g. '$500M'). If unavailable, return null.\"\n    }\n  },\n  \"required\": [\"ceo_name\", \"annual_revenue_2024\"],\n  \"additionalProperties\": false\n}\n```\n\n📖 **Documentation:** https://docs.parallel.ai/task-api/core-concepts/specify-a-task",
+                    "example": "Extract company information including CEO name, primary industry, and headquarters location"
                   },
                   "processor": {
                     "type": "string",
-                    "enum": ["lite", "base", "core", "pro", "ultra"],
-                    "description": "Parallel.ai processor to use. If not specified, will be auto-suggested based on task requirements"
-                  },
-                  "webhook_url": {
-                    "type": "string",
-                    "format": "uri",
-                    "description": "URL to POST to when all tasks are completed",
-                    "example": "https://example.com/webhook"
-                  }
-                }
-              },
-              "examples": {
-                "json_with_schema": {
-                  "summary": "JSON output with custom schema",
-                  "value": {
-                    "inputs": [
-                      {
-                        "company_name": "Apple",
-                        "company_website": "https://apple.com"
-                      },
-                      {
-                        "company_name": "Microsoft",
-                        "company_website": "https://microsoft.com"
-                      }
+                    "enum": [
+                      "lite",
+                      "base",
+                      "core",
+                      "pro",
+                      "ultra",
+                      "ultra2x",
+                      "ultra4x",
+                      "ultra8x"
                     ],
-                    "output_type": "json",
-                    "output_schema": {
-                      "type": "object",
-                      "properties": {
-                        "company_name": { "type": "string" },
-                        "ceo": { "type": "string" },
-                        "industry": { "type": "string" }
-                      }
-                    },
-                    "processor": "core",
-                    "webhook_url": "https://example.com/webhook"
-                  }
-                },
-                "text_output": {
-                  "summary": "Text output with description",
-                  "value": {
-                    "inputs": [
-                      { "text": "Analyze this customer feedback" },
-                      { "text": "Review this product description" }
-                    ],
-                    "output_type": "text",
-                    "output_description": "Provide a sentiment analysis summary"
-                  }
-                },
-                "url_inputs": {
-                  "summary": "Inputs from URL",
-                  "value": {
-                    "inputs": "https://example.com/data.json",
-                    "output_type": "json",
-                    "output_description": "Extract key information from each item"
+                    "description": "Optional processor selection that determines speed, cost, and capability. If not specified, will be auto-suggested based on task complexity.\n\n**Processor Options:**\n- **lite** ($0.005/input): Basic metadata extraction, 5s-60s latency, ~2 fields\n- **base** ($0.01/input): Standard enrichments, 15s-100s latency, ~5 fields\n- **core** ($0.025/input): Cross-referenced complex outputs, 1-5min latency, ~10 fields\n- **pro** ($0.10/input): Exploratory web research with citations, 3-9min latency, ~20 fields\n- **ultra** ($0.30/input): Advanced multi-source deep research, 5-25min latency, ~20 fields\n- **ultra2x** ($0.60/input): Difficult deep research, 5-25min latency, ~25 fields\n- **ultra4x** ($1.20/input): Very difficult deep research, 8-30min latency, ~25 fields\n- **ultra8x** ($2.40/input): Most difficult deep research, 8-30min latency, ~25 fields\n\n**Key Features by Tier:**\n- lite/base: Basic citations and reasoning\n- core+: Full citations, reasoning, confidence scores, and excerpts\n- pro+: Enables Deep Research capabilities for comprehensive analysis\n\n**Selection Guide:** Use lite/base for simple data extraction, core for reliable structured outputs, pro+ when reasoning depth and comprehensive research are critical.\n\n📖 **Documentation:** https://docs.parallel.ai/task-api/core-concepts/choose-a-processor"
                   }
                 }
               }
@@ -219,31 +131,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "callbacks": {
-          "taskGroupComplete": {
-            "{$request.body#/webhook_url}": {
-              "post": {
-                "summary": "Task Group Completion Webhook",
-                "description": "Called when all tasks in the group are completed",
-                "requestBody": {
-                  "required": true,
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/WebhookPayload"
-                      }
-                    }
-                  }
-                },
-                "responses": {
-                  "200": {
-                    "description": "Webhook received successfully"
-                  }
                 }
               }
             }
@@ -308,7 +195,7 @@
       "get": {
         "summary": "Get Task Group Results as Markdown",
         "operationId": "getTaskGroupResultsMarkdown",
-        "description": "Get Task Group Results as Markdown",
+        "description": "Get Task Group Results as Markdown with optional basis information",
         "parameters": [
           {
             "name": "taskGroupId",
@@ -316,6 +203,31 @@
             "required": true,
             "schema": {
               "type": "string"
+            },
+            "description": "Task group identifier"
+          },
+          {
+            "name": "basis",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(all|index:[0-9]+|field:[a-zA-Z_][a-zA-Z0-9_]*)$"
+            },
+            "description": "Optional: Include basis information - 'all' for all results, 'index:{number}' for specific index, or 'field:{fieldname}' for specific field\n\nNB: Only use this when needed as it consumes a lot of tokens.",
+            "examples": {
+              "all": {
+                "value": "all",
+                "summary": "Show basis for all results"
+              },
+              "index": {
+                "value": "index:5",
+                "summary": "Show basis for result at index 5"
+              },
+              "field": {
+                "value": "field:company_name",
+                "summary": "Show basis for company_name field across all results"
+              }
             }
           }
         ],
@@ -329,9 +241,11 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Task group not found"
           }
-        },
-        "tags": ["Results"]
+        }
       }
     }
   },
@@ -509,18 +423,6 @@
           "metadata": {
             "type": "object",
             "description": "Additional metadata for the run"
-          }
-        }
-      },
-      "WebhookPayload": {
-        "type": "object",
-        "required": ["url"],
-        "properties": {
-          "url": {
-            "type": "string",
-            "format": "uri",
-            "description": "URL to access the completed task group results",
-            "example": "https://task-mcp.parallel.ai/tgrp_abc123"
           }
         }
       },

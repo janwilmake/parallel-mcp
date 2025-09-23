@@ -2,7 +2,4 @@ Search MCP proxy server (https://search-mcp.parallel.ai) that proxies `/mcp` to 
 
 MCP address: https://search-mcp-proxy.parallel.ai/mcp
 
-# TODO
-
-- Deploy
-- Add to smithery
+[![Install Parallel Search MCP](https://img.shields.io/badge/Install_MCP-Parallel%20Search%20MCP-black?style=for-the-badge)](https://installthismcp.com/Parallel%20Search%20MCP?url=https%3A%2F%2Fsearch-mcp.parallel.ai%2Fmcp)

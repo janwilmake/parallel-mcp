@@ -11,8 +11,7 @@ interface TaskGroupInput {
   inputs: string | { [key: string]: unknown }[];
   processor?: string;
   output_type: "text" | "json";
-  output_description?: string;
-  output_schema?: any;
+  output?: string;
 }
 
 const fetchHandler = async (request: Request): Promise<Response> => {
@@ -41,7 +40,7 @@ const fetchHandler = async (request: Request): Promise<Response> => {
 export default {
   fetch: withMcp(
     withSimplerAuth(fetchHandler, {
-      oauthProviderHost: "parallel.simplerauth.com",
+      oauthProviderHost: "oauth.parallel.ai",
       scope: "api",
       isLoginRequired: false,
     }),
@@ -70,6 +69,8 @@ async function handleTaskGroupResults(
   }
 
   try {
+    const url = new URL(request.url);
+    const basis = url.searchParams.get("basis");
     const data = await getTaskGroupData(apiKey, taskGroupId);
 
     switch (format) {
@@ -79,7 +80,7 @@ async function handleTaskGroupResults(
         });
 
       case "md":
-        return new Response(formatAsMarkdown(data), {
+        return new Response(formatAsMarkdown(data, basis), {
           headers: { "content-type": "text/markdown;charset=utf8" },
         });
 
@@ -225,17 +226,24 @@ async function handleMultitask(request: Request): Promise<Response> {
       );
     }
 
-    // Prepare task specification with error handling
+    // Prepare task specification with error handling - use the new output format
     let taskSpec: any = {};
     let schemaGenerationWarnings: string[] = [];
 
     if (body.output_type === "json") {
-      if (body.output_schema) {
+      let isOutputJsonSchema = false;
+      try {
+        JSON.parse(body.output);
+        isOutputJsonSchema = true;
+      } catch (e) {}
+
+      if (body.output && isOutputJsonSchema) {
+        // JSON schema provided
         taskSpec.output_schema = {
           type: "json",
-          json_schema: body.output_schema,
+          json_schema: JSON.parse(body.output),
         };
-      } else if (body.output_description) {
+      } else if (body.output && typeof body.output === "string") {
         // Use suggest API to generate schema from description
         try {
           const suggestResponse = await fetch(
@@ -247,7 +255,7 @@ async function handleMultitask(request: Request): Promise<Response> {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                user_intent: body.output_description,
+                user_intent: body.output,
               }),
             }
           );
@@ -285,7 +293,10 @@ async function handleMultitask(request: Request): Promise<Response> {
     } else {
       taskSpec.output_schema = {
         type: "text",
-        description: body.output_description || "Text output from task",
+        description:
+          typeof body.output === "string"
+            ? body.output
+            : "Text output from task",
       };
     }
 
@@ -305,7 +316,16 @@ async function handleMultitask(request: Request): Promise<Response> {
             },
             body: JSON.stringify({
               task_spec: taskSpec,
-              choose_processors_from: ["lite", "base", "core", "pro", "ultra"],
+              choose_processors_from: [
+                "lite",
+                "base",
+                "core",
+                "pro",
+                "ultra",
+                "ultra2x",
+                "ultra4x",
+                "ultra8x",
+              ],
             }),
           }
         );
@@ -342,7 +362,7 @@ async function handleMultitask(request: Request): Promise<Response> {
         metadata: {
           created_via: "task-mcp",
           output_type: body.output_type,
-          processor_used: processor,
+          processor: processor,
           inputs_count: inputs.length,
           created_at: new Date().toISOString(),
         },
@@ -505,6 +525,7 @@ async function getTaskGroupData(
     if (event.type === "task_run.state") {
       runs.push({
         run_id: event.run.run_id,
+        input_index: parseInt(event.run.metadata?.input_index || "0"),
         status: event.run.status,
         is_active: event.run.is_active,
         processor: event.run.processor,
@@ -513,9 +534,13 @@ async function getTaskGroupData(
         error: event.run.error,
         input: event.input?.input,
         output: event.output,
+        output_basis: event.output?.basis,
       });
     }
   }
+
+  // Sort runs by input_index to maintain order
+  runs.sort((a, b) => a.input_index - b.input_index);
 
   // Process runs to create flat results with merged input and output
   const results: any[] = [];
@@ -544,6 +569,7 @@ async function getTaskGroupData(
     // Create flat result object: {$id, status, ...input, ...output.content}
     const resultItem = {
       $id: run.run_id,
+      $index: run.input_index,
       status: run.status,
       ...inputData,
       ...outputContent,
@@ -557,6 +583,7 @@ async function getTaskGroupData(
     metadata: taskGroup.metadata || {},
     status: taskGroup.status,
     created_at: taskGroup.created_at,
+    output_schema: taskGroup.output_schema || null,
     results,
     runs,
   };
@@ -596,7 +623,7 @@ function getFormatFromAccept(accept: string | null): string {
   return "json";
 }
 
-function formatAsMarkdown(data: any): string {
+function formatAsMarkdown(data: any, basisParam: string | null): string {
   let md = `# Task Group Results\n\n`;
   md += `**Task Group ID:** ${data.id}\n`;
   md += `**Status:** ${data.status.is_active ? "🟡 Active" : "✅ Complete"}\n`;
@@ -605,6 +632,14 @@ function formatAsMarkdown(data: any): string {
   md += `**Completed:** ${data.status.task_run_status_counts.completed || 0}\n`;
   md += `**Failed:** ${data.status.task_run_status_counts.failed || 0}\n`;
   md += `**Created:** ${data.created_at}\n`;
+
+  // Add all metadata
+  if (data.metadata && Object.keys(data.metadata).length > 0) {
+    md += `\n**Metadata:**\n`;
+    for (const [key, value] of Object.entries(data.metadata)) {
+      md += `- **${key}:** ${JSON.stringify(value)}\n`;
+    }
+  }
 
   // Add status message if available
   if (data.status.status_message) {
@@ -664,11 +699,11 @@ function formatAsMarkdown(data: any): string {
     return md;
   }
 
-  // Get all unique properties from results (excluding $id and status)
+  // Get all unique properties from results (excluding $id, $index and status)
   const allProps = new Set<string>();
   for (const result of data.results) {
     Object.keys(result).forEach((key) => {
-      if (key !== "$id" && key !== "status") {
+      if (key !== "$id" && key !== "status" && key !== "$index") {
         allProps.add(key);
       }
     });
@@ -684,10 +719,10 @@ function formatAsMarkdown(data: any): string {
   md += `- Confidence: 🟢 High | 🟡 Medium | 🔴 Low\n`;
   md += `- ⚠️ = Has warnings | 🚨 = Has errors\n\n`;
 
-  md += `| Status | ${properties
+  md += `| Index | Status | ${properties
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" | ")} |\n`;
-  md += `|--------|${properties.map(() => "--------").join("|")}|\n`;
+  md += `|-------|--------|${properties.map(() => "--------").join("|")}|\n`;
 
   for (const result of data.results) {
     // Get the full run data for this result to access confidence, warning and error info
@@ -752,8 +787,8 @@ function formatAsMarkdown(data: any): string {
 
       // Get confidence for this field if available
       let confidenceEmoji = "";
-      if (fullRun?.output?.basis) {
-        const fieldBasis = fullRun.output.basis.find(
+      if (fullRun?.output_basis) {
+        const fieldBasis = fullRun.output_basis.find(
           (basis) => basis.field === prop
         );
         if (fieldBasis?.confidence) {
@@ -780,9 +815,63 @@ function formatAsMarkdown(data: any): string {
       return confidenceEmoji + valueStr;
     });
 
-    md += `| ${statusEmoji} ${statusText}${indicators} | ${values.join(
-      " | "
-    )} |\n`;
+    md += `| ${
+      result.$index
+    } | ${statusEmoji} ${statusText}${indicators} | ${values.join(" | ")} |\n`;
+  }
+
+  // Add basis information if requested
+  if (basisParam) {
+    md += `\n## 📊 Basis Information\n\n`;
+
+    if (basisParam === "all") {
+      // Show all basis information for all results
+      md += `### All Results Basis\n\n`;
+      data.runs.forEach((run, runIndex) => {
+        if (run.output_basis && run.output_basis.length > 0) {
+          md += `**Run ${runIndex} (${run.run_id}):**\n`;
+          md += `\`\`\`json\n${JSON.stringify(
+            run.output_basis,
+            null,
+            2
+          )}\n\`\`\`\n\n`;
+        }
+      });
+    } else if (basisParam.startsWith("index:")) {
+      // Show basis for specific index
+      const index = parseInt(basisParam.split(":")[1]);
+      const targetRun = data.runs.find((run) => run.input_index === index);
+      if (targetRun && targetRun.output_basis) {
+        md += `### Basis for Index ${index}\n\n`;
+        md += `\`\`\`json\n${JSON.stringify(
+          targetRun.output_basis,
+          null,
+          2
+        )}\n\`\`\`\n\n`;
+      } else {
+        md += `*No basis information found for index ${index}*\n\n`;
+      }
+    } else if (basisParam.startsWith("field:")) {
+      // Show basis for specific field across all results
+      const fieldName = basisParam.split(":")[1];
+      md += `### Basis for Field "${fieldName}"\n\n`;
+
+      data.runs.forEach((run, runIndex) => {
+        if (run.output_basis) {
+          const fieldBasis = run.output_basis.find(
+            (basis) => basis.field === fieldName
+          );
+          if (fieldBasis) {
+            md += `**Run ${runIndex} (${run.run_id}):**\n`;
+            md += `\`\`\`json\n${JSON.stringify(
+              fieldBasis,
+              null,
+              2
+            )}\n\`\`\`\n\n`;
+          }
+        }
+      });
+    }
   }
 
   // Add detailed warnings section if there are any
@@ -835,11 +924,11 @@ function formatAsMarkdown(data: any): string {
 }
 
 function formatAsHTML(data: any): string {
-  // Get all unique properties from results (excluding $id and status)
+  // Get all unique properties from results (excluding $id, $index and status)
   const allProps = new Set<string>();
   for (const result of data.results) {
     Object.keys(result).forEach((key) => {
-      if (key !== "$id" && key !== "status") {
+      if (key !== "$id" && key !== "status" && key !== "$index") {
         allProps.add(key);
       }
     });
@@ -918,6 +1007,18 @@ function formatAsHTML(data: any): string {
         <p><strong>Modified:</strong> ${new Date(
           data.status.modified_at
         ).toLocaleString()}</p>
+        ${
+          data.metadata && Object.keys(data.metadata).length > 0
+            ? `<div class="mt-2">
+               <p><strong>Metadata:</strong></p>
+               <pre class="text-xs bg-gray-100 p-2 rounded mt-1">${JSON.stringify(
+                 data.metadata,
+                 null,
+                 2
+               )}</pre>
+             </div>`
+            : ""
+        }
       </div>
     </div>
     
@@ -930,6 +1031,7 @@ function formatAsHTML(data: any): string {
           <table class="min-w-full">
             <thead class="bg-gray-50">
               <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Index</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 ${properties
                   .map(
@@ -960,8 +1062,8 @@ function formatAsHTML(data: any): string {
 
                     // Get confidence for this field if available
                     let confidenceEmoji = "";
-                    if (fullRun?.output?.basis) {
-                      const fieldBasis = fullRun.output.basis.find(
+                    if (fullRun?.output_basis) {
+                      const fieldBasis = fullRun.output_basis.find(
                         (basis) => basis.field === prop
                       );
                       if (fieldBasis?.confidence) {
@@ -1000,6 +1102,9 @@ function formatAsHTML(data: any): string {
 
                   return `
                 <tr>
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                    ${result.$index}
+                  </td>
                   <td class="px-6 py-4 text-sm">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       result.status === "completed"
