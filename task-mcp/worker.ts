@@ -41,7 +41,7 @@ const fetchHandler = async (request: Request): Promise<Response> => {
 export default {
   fetch: withMcp(
     withSimplerAuth(fetchHandler, {
-      oauthProviderHost: "localhost:3000", // || "oauth.parallel.ai",
+      oauthProviderHost: "oauth.parallel.ai",
       scope: "api",
       isLoginRequired: false,
     }),
