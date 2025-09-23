@@ -15,6 +15,7 @@ Designed for tabular data enrichment, this MCP is works best together with an MC
 # How to test MCP locally
 
 - On localhost, run `wrangler dev --env dev`
+- In `parallel-oauth-provider` run `wrangler dev --env dev`
 - Run `npx @modelcontextprotocol/inspector` and test `http://localhost:8787/mcp`. The oauth flow should work.
 
 # Context

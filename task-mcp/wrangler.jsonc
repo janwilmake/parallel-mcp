@@ -10,6 +10,8 @@
     { "tag": "v2", "deleted_classes": ["TaskGroupDO"] }
   ],
   "assets": { "directory": "./" },
-  "env": { "dev": { "routes": [] } },
+  "env": {
+    "dev": { "routes": [], "vars": { "OAUTH_PROVIDER_HOST": "localhost:3000" } }
+  },
   "routes": [{ "custom_domain": true, "pattern": "task-mcp.parallel.ai" }]
 }

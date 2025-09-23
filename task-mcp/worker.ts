@@ -6,6 +6,7 @@ import Parallel from "parallel-web";
 import { withSimplerAuth } from "simplerauth-client";
 //@ts-ignore
 import openapi from "./openapi.json";
+import { env } from "cloudflare:workers";
 
 interface TaskGroupInput {
   inputs: string | { [key: string]: unknown }[];
@@ -40,7 +41,7 @@ const fetchHandler = async (request: Request): Promise<Response> => {
 export default {
   fetch: withMcp(
     withSimplerAuth(fetchHandler, {
-      oauthProviderHost: "oauth.parallel.ai",
+      oauthProviderHost: "localhost:3000", // || "oauth.parallel.ai",
       scope: "api",
       isLoginRequired: false,
     }),

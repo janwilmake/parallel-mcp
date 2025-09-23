@@ -1,7 +1,16 @@
+# DONE
+
+- MCP Oauth now at https://oauth.parallel.ai
+- Improved task group docs merged: https://docs.parallel.ai/task-api/features/group-api
+- new groq-agent live
+- Many improvements on task MCP
+
 # Other
 
-- Iterate on SSE AGent
-- https://wilmake.slack.com/archives/C09807JBB26/p1758580675283749?thread_ts=1758571795.468469&cid=C09807JBB26
+- Pending PR for MCP docs: https://github.com/shapleyai/documentation/pull/226. install https://pre-commit.com and run `pre-commit run --all-files` for `documentation` checks to pass
+- Iterate on SSE Agent https://wilmake.slack.com/archives/C09807JBB26/p1758041651707579
+- MCP testing!!!!
+- Create public `parallel-web/task-mcp`
 - After Manvesh deploys Task Group Link: Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
 
 # Testing & Demos
@@ -42,7 +51,7 @@ Client without registry:
 
 - https://ampcode.com/manual and https://sourcegraph.com
 - 🔥 https://docs.factory.ai/user-guides/factory-bridge/model-context-protocol
-- 🔥 https://x.com/interaction/status/1966900969062773135
+- ❌ https://x.com/interaction/status/1966900969062773135
 
 Client Registries:
 

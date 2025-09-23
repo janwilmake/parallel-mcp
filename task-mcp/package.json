@@ -4,7 +4,7 @@
   },
   "dependencies": {
     "parallel-web": "0.1.1",
-    "simplerauth-client": "0.0.17",
+    "simplerauth-client": "0.0.18",
     "with-mcp": "0.0.17"
   }
 }

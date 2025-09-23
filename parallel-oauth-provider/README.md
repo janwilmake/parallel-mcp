@@ -40,3 +40,9 @@ It has been abstracted away fully from Cloudflare and can be used in any cloud p
 See [demo](demo.ts) in combination with [index.html](index.html)
 
 The user just needs to get their API key from the Parallel dashboard and enter it once - it'll be remembered in a cookie for future use.
+
+# How to test if this works
+
+- in this folder, run `wrangler dev --env dev` (spawns localhost:3000)
+- in `task-mcp`, run `wrangler dev --env dev` (spawns localhost:8787)
+- Run `npx @modelcontextprotocol/inspector` and test `http://localhost:8787/mcp`. The oauth flow should work.

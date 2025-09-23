@@ -5,7 +5,9 @@
   "compatibility_date": "2025-08-20",
   "assets": { "directory": "./" },
   "main": "demo.ts",
+  "dev": { "port": 3000 },
   "route": { "custom_domain": true, "pattern": "oauth.parallel.ai" },
+  "env": { "dev": { "routes": [] } },
   "kv_namespaces": [
     {
       "binding": "PKV",
