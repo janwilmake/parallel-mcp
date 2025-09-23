@@ -1,3 +1,7 @@
+Designed for tabular data enrichment, this MCP is works best together with an MCP that can get your data source.
+
+![](mcp-apps.drawio.png)
+
 # Links
 
 - OpenAPI Playground: https://task-mcp.parallel.ai/openapi
