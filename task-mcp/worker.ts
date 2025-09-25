@@ -6,7 +6,6 @@ import Parallel from "parallel-web";
 import { withSimplerAuth } from "simplerauth-client";
 //@ts-ignore
 import openapi from "./openapi.json";
-import { env } from "cloudflare:workers";
 
 interface TaskGroupInput {
   inputs: string | { [key: string]: unknown }[];
@@ -453,9 +452,10 @@ async function handleMultitask(request: Request): Promise<Response> {
       );
     }
 
-    const origin = new URL(request.url).origin;
+    const task_group_url = `https://platform.parallel.ai/view/task-run-group/${taskGroupId}`;
+
     const successResponse = {
-      task_group_url: `${origin}/${taskGroupId}`,
+      task_group_url,
       task_group_id: taskGroupId,
       summary: {
         total_inputs: inputs.length,
@@ -473,7 +473,7 @@ async function handleMultitask(request: Request): Promise<Response> {
 
     // Return detailed response based on success/failure
     if (batchResults.every((b) => b.success)) {
-      return new Response(successResponse.task_group_url, {
+      return new Response(task_group_url, {
         status: 200,
         headers: { "content-type": "application/json" },
       });

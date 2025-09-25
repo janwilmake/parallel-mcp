@@ -1,23 +1,12 @@
-# Tuesday
+# MCP
 
-- MCP Oauth now at https://oauth.parallel.ai
-- Improved task group docs merged: https://docs.parallel.ai/task-api/features/group-api
-- New groq-agent live
-- Many improvements on task MCP
-
-# Wednesday
-
-- ✅ Add IP ratelimiting to groq search
-- finish SSE recipe
-- review https://github.com/parallel-web/parallel-n8n-nodes/pull/2
-- Pending PR for MCP docs: https://github.com/shapleyai/documentation/pull/226. Install https://pre-commit.com and run `pre-commit run --all-files` for `documentation` checks to pass
+- MCP testing!
+- Create public `parallel-web/task-mcp`
 - MCPs need `keys:read` scope supported only.
-- MCP testing! Make demos for Hackadam.
+- Make demos for Hackadam.
+- Maurice job?
 
-# Thursday
-
-- After Manvesh deploys Task Group Link: Replace link with `platform.parallel.ai/view/task-run-groups/{task_group_id}`
-- Create public `parallel-web/task-mcp`?
+# Test oauth flow platform.parallel.ai
 
 # Testing & Demos
 

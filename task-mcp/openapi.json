@@ -7,7 +7,7 @@
       "authEndpoint": "/me"
     },
     "title": "Parallel.ai Multitask API",
-    "description": "Batch process tasks at scale using Parallel.ai",
+    "description": "Batch process tasks at scale using Parallel.ai.",
     "version": "1.0.0",
     "contact": {
       "name": "Parallel.ai",
@@ -32,7 +32,7 @@
     "/v1beta/tasks/multitask": {
       "post": {
         "summary": "Create Multitask Group",
-        "description": "Creates a new task group for batch processing. Responds with a URL in format https://task-mcp.parallel.ai/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here.",
+        "description": "Creates a new task group for batch processing. Responds with a URL in format https://platform.parallel.ai/view/task-run-group/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here. After the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getTaskGroupResultsMarkdown` tool.",
         "operationId": "createMultitask",
         "requestBody": {
           "required": true,
@@ -94,7 +94,7 @@
                 "schema": {
                   "type": "string",
                   "description": "URL at which the task group can be viewed",
-                  "example": "https://task-mcp.parallel.ai/tgrp_abc123"
+                  "example": "https://platform.parallel.ai/view/task-run-group/tgrp_abc123"
                 }
               }
             }
