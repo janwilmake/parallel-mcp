@@ -909,7 +909,7 @@ export async function parallelOauthProvider(request, kv, secret, config) {
           access_token: apiKey,
           token_type: "bearer",
           scope: "api",
-          expires_in: 2592000, // 30 days
+          //expires_in: 2592000, // 30 days
         }),
         {
           headers: {

@@ -1,3 +1,19 @@
+# Context
+
+MCP context:
+
+- MCP Specification: https://uithub.com/modelcontextprotocol/modelcontextprotocol/tree/main/docs/specification/2025-06-18?lines=false
+- Typescript JSON RPC methods: https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/refs/heads/main/schema/2025-03-26/schema.ts or new https://uithub.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts
+- with-mcp implementation: https://uithub.com/janwilmake/with-mcp/blob/main/with-mcp.ts
+
+Other Context:
+
+- Parallel Multitask API: https://task-mcp.parallel.ai/openapi.json
+- Parallel oauth provider url: https://oauth-demo.parallel.ai
+- Simplerauth-client: https://uithub.com/janwilmake/universal-mcp-oauth/blob/main/simplerauth-client/README.md
+
+# SPEC
+
 Make me a cloudflare worker that creates the task group and inserts all inputs, then streams the results to a durable object unique to that task run.
 
 # `POST /v1beta/tasks/multitask`

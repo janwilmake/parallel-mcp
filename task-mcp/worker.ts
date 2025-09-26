@@ -6,6 +6,7 @@ import Parallel from "parallel-web";
 import { withSimplerAuth } from "simplerauth-client";
 //@ts-ignore
 import openapi from "./openapi.json";
+import { env } from "cloudflare:workers";
 
 interface TaskGroupInput {
   inputs: string | { [key: string]: unknown }[];
@@ -40,8 +41,10 @@ const fetchHandler = async (request: Request): Promise<Response> => {
 export default {
   fetch: withMcp(
     withSimplerAuth(fetchHandler, {
-      oauthProviderHost: "oauth.parallel.ai",
-      scope: "api",
+      oauthProviderHost:
+        (env as any).OAUTH_PROVIDER_HOST || "oauth.parallel.ai",
+      oauthProviderPathPrefix: (env as any).OAUTH_PROVIDER_PREFIX,
+      scope: "keys:read",
       isLoginRequired: false,
     }),
     openapi,
@@ -807,10 +810,7 @@ function formatAsMarkdown(data: any, basisParam: string | null): string {
         }
       }
 
-      // Truncate very long values but preserve line breaks with <br>
-      if (valueStr.length > 200) {
-        valueStr = valueStr.substring(0, 200) + "...";
-      }
+      // preserve line breaks with <br>
       valueStr = valueStr.replace(/\n/g, "<br>");
 
       return confidenceEmoji + valueStr;

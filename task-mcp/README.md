@@ -8,26 +8,28 @@ Designed for tabular data enrichment, this MCP is works best together with an MC
 - OpenAPI JSON: https://task-mcp.parallel.ai/openapi.json
 - Design SPEC (outdated): [SPEC.md](SPEC.md)
 - MCP docs: https://docs.parallel.ai/features/remote-mcp
-- MCP address: `https://search-mcp-proxy.parallel.ai/mcp`
 
 [![Install Parallel Task MCP](https://img.shields.io/badge/Install_MCP-Parallel%20Task%20MCP-black?style=for-the-badge)](https://installthismcp.com/Parallel%20Task%20MCP?url=https%3A%2F%2Ftask-mcp.parallel.ai%2Fmcp)
 
-# How to test MCP locally
+# Testing & Deployment
 
-- On localhost, run `wrangler dev --env dev`
+## Testing oauth provider locally
+
+- On localhost, run `wrangler dev --env oauth`
 - In `parallel-oauth-provider` run `wrangler dev --env dev`
 - Run `npx @modelcontextprotocol/inspector` and test `http://localhost:8787/mcp`. The oauth flow should work.
 
-# Context
+## Testing MCP Locally
 
-MCP context:
+On localhost, run `wrangler dev --env dev`
 
-- MCP Specification: https://uithub.com/modelcontextprotocol/modelcontextprotocol/tree/main/docs/specification/2025-06-18?lines=false
-- Typescript JSON RPC methods: https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/refs/heads/main/schema/2025-03-26/schema.ts or new https://uithub.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts
-- with-mcp implementation: https://uithub.com/janwilmake/with-mcp/blob/main/with-mcp.ts
+[![Install Parallel Task MCP (Localhost)](<https://img.shields.io/badge/Install_MCP-Parallel%20Task%20MCP%20(Localhost)-black?style=for-the-badge>)](<https://installthismcp.com/Parallel%20Task%20MCP%20(Localhost)?url=http%3A%2F%2Flocalhost%3A8787%2Fmcp>)
 
-Other Context:
+## Deployment
 
-- Parallel Multitask API: https://task-mcp.parallel.ai/openapi.json
-- Parallel oauth provider url: https://oauth-demo.parallel.ai
-- Simplerauth-client: https://uithub.com/janwilmake/universal-mcp-oauth/blob/main/simplerauth-client/README.md
+To deploy to staging or prod use:
+
+- staging: `wrangler deploy --env staging`
+- prod: `wrangler deploy --env prod`
+
+Ensure you have a [Cloudflare account](https://dash.cloudflare.com/sign-up/workers). Then, install [wrangler](https://developers.cloudflare.com/workers/wrangler/) and login. You may need to change the [wrangler.jsonc](wrangler.jsonc) configuration

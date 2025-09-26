@@ -5,13 +5,34 @@
   "main": "worker.ts",
   "compatibility_date": "2025-09-10",
   "observability": { "logs": { "enabled": true } },
-  "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["TaskGroupDO"] },
-    { "tag": "v2", "deleted_classes": ["TaskGroupDO"] }
-  ],
   "assets": { "directory": "./" },
   "env": {
-    "dev": { "routes": [], "vars": { "OAUTH_PROVIDER_HOST": "localhost:3000" } }
-  },
-  "routes": [{ "custom_domain": true, "pattern": "task-mcp.parallel.ai" }]
+    "dev": {
+      "routes": [],
+      "vars": {
+        "OAUTH_PROVIDER_HOST": "platform.parallel.ai",
+        "OAUTH_PROVIDER_PREFIX": "/getKeys"
+      }
+    },
+    "oauth": {
+      "routes": [],
+      "vars": { "OAUTH_PROVIDER_HOST": "localhost:3000" }
+    },
+    "staging": {
+      "routes": [
+        { "custom_domain": true, "pattern": "task-mcp-staging.parallel.ai" }
+      ],
+      "vars": {
+        "OAUTH_PROVIDER_HOST": "platform.parallel.ai",
+        "OAUTH_PROVIDER_PREFIX": "/getKeys"
+      }
+    },
+    "prod": {
+      "routes": [{ "custom_domain": true, "pattern": "task-mcp.parallel.ai" }],
+      "vars": {
+        "OAUTH_PROVIDER_HOST": "platform.parallel.ai",
+        "OAUTH_PROVIDER_PREFIX": "/getKeys"
+      }
+    }
+  }
 }

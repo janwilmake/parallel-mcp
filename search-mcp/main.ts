@@ -23,8 +23,9 @@ export default {
     },
     {
       isLoginRequired: false,
-      oauthProviderHost: "oauth.parallel.ai",
-      scope: "api",
+      oauthProviderPathPrefix: "/getKeys",
+      oauthProviderHost: "platform.parallel.ai",
+      scope: "keys:read",
     }
   ),
 };

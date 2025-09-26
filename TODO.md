@@ -1,12 +1,8 @@
-# MCP
+# TODO
 
-- MCP testing!
-- Create public `parallel-web/task-mcp`
-- MCPs need `keys:read` scope supported only.
-- Make demos for Hackadam.
-- Maurice job?
-
-# Test oauth flow platform.parallel.ai
+1. Add instructions to the team onto README on how to deploy task-mcp to a staging URL.
+2. Try editing prompt to instruct it to do a deep research taks
+3. if the results there aren't great,
 
 # Testing & Demos
 
@@ -20,9 +16,9 @@ Think about:
 
 <!-- It's demo time. The thing fucking works! Ideally I make highly authentic demos that show the benefit and experimental process. This is a testing ground. The ones that get engagement can be turned into professional blogs with more enterprise use-case -->
 
-- vscode demo: new!
+- VScode demo: new!
 
-- **ChatGPT Demo**: user uploads CSV and says what we need to add, and instructions on repeating with first 5 until quality is good. Task Group API is used repeatedly. Finally, perform batch API on all rows. Download final CSV.
+- **ChatGPT Demo**: User uploads CSV and says what we need to add, and instructions on repeating with first 5 until quality is good. Task Group API is used repeatedly. Finally, perform batch API on all rows. Download final CSV.
 
 - **Subagent (Claude Code or Cursor)** - Put this MCP in a subagent template. The process is always to use search first to make a list, then do a Parallel Task, then use the Alarm MCP (or just `sleep 900`), and get back with final results https://docs.claude.com/en/docs/claude-code/sub-agents#available-tools. This can be added as description to the agent context. The input can come from a JSON file, the outputs can be written to a JSON files as well. Ideally we perform an experiment of choosing processors here: it can be an example of an experiemnt where we compare chaining tasks with doing one bigger task.
 
@@ -74,6 +70,6 @@ Registries:
 
 Not sure:
 
-https://opencode.ai
+https://opencode.ai ()
 
 Create task group using MCP to enhance this list into actionable items on how actually get listed.
