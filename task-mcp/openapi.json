@@ -3,11 +3,15 @@
   "info": {
     "x-mcp": {
       "protocolVersion": "2025-03-26",
-      "toolOperationIds": ["createMultitask", "getTaskGroupResultsMarkdown"],
+      "toolOperationIds": [
+        "createTaskGroup",
+        "getTaskGroupResultsMarkdown",
+        "createDeepResearch"
+      ],
       "authEndpoint": "/me"
     },
     "title": "Parallel.ai Multitask API",
-    "description": "Batch process tasks at scale using Parallel.ai.",
+    "description": "Perform Deep Research or Create Task Groups using Parallel.ai. \n\n- For doing a single deep research where detailed unstructured output is preferred, use 'createDeepResearch'.\n- When tabular data is preferred with more structured data enrichment, a task group (createTaskGroup + getTaskGroupResultsMarkdown) is more useful.",
     "version": "1.0.0",
     "contact": {
       "name": "Parallel.ai",
@@ -29,11 +33,130 @@
     }
   ],
   "paths": {
-    "/v1beta/tasks/multitask": {
+    "/v1beta/tasks/deep-research": {
       "post": {
-        "summary": "Create Multitask Group",
-        "description": "Creates a new task group for batch processing. Responds with a URL in format https://platform.parallel.ai/view/task-run-group/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here. After the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getTaskGroupResultsMarkdown` tool.",
-        "operationId": "createMultitask",
+        "summary": "Create Deep Research Task",
+        "description": "Creates a comprehensive Deep Research task that transforms natural language research queries into analyst-grade intelligence reports. Automatically enables text output format and events streaming for real-time progress updates.\n\n**Key Features:**\n- Multi-step web exploration and targeted information retrieval\n- Sophisticated synthesis with inline citations and verification\n- Markdown report format with structured intelligence\n- Real-time progress updates via Server-Sent Events\n- Estimated duration: 5-25 minutes (up to 45 minutes for complex research)\n\n**Requirements:**\n- Input must be under 15,000 characters for optimal performance\n- Requires 'pro' or 'ultra' processors (defaults to 'pro')\n- Automatically configures text schema and enables events streaming\n\n📖 **Documentation:** https://docs.parallel.ai/task-api/features/task-deep-research",
+        "operationId": "createDeepResearch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["input"],
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "maxLength": 15000,
+                    "description": "Natural language research query or objective. Be specific and detailed for better results.\n\n**Examples:**\n- 'Create a comprehensive market research report on the HVAC industry in the USA including an analysis of recent M&A activity and other relevant details'\n- 'Analyze the competitive landscape of AI-powered customer service platforms, focusing on pricing models and key differentiators'\n- 'Research the regulatory environment for cryptocurrency exchanges in Europe, including recent policy changes and compliance requirements'\n\n**Best Practices:**\n- Keep under 15,000 characters for optimal performance\n- Be specific about what intelligence you need\n- Include desired scope and focus areas\n- Mention any particular timeframes or geographic regions",
+                    "example": "Create a comprehensive market research report on the renewable energy storage market in Europe, focusing on battery technologies and policy impacts"
+                  },
+                  "processor": {
+                    "type": "string",
+                    "enum": ["pro", "ultra", "ultra2x", "ultra4x", "ultra8x"],
+                    "default": "pro",
+                    "description": "Processor selection for Deep Research capability. Defaults to 'pro' if not specified.\n\n**Deep Research Processors:**\n- **pro** ($0.10/task): Exploratory web research with citations, 3-9min latency\n- **ultra** ($0.30/task): Advanced multi-source deep research, 5-25min latency\n- **ultra2x** ($0.60/task): Difficult deep research, 5-25min latency\n- **ultra4x** ($1.20/task): Very difficult deep research, 8-30min latency\n- **ultra8x** ($2.40/task): Most difficult deep research, 8-30min latency\n\n**Note:** Only 'pro' and 'ultra' family processors support Deep Research capabilities.\n\n📖 **Documentation:** https://docs.parallel.ai/task-api/core-concepts/choose-a-processor"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Deep Research task created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeepResearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid input or processor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missing_input": {
+                    "value": {
+                      "error": "Missing required field",
+                      "detail": "'input' is a required field",
+                      "required_fields": ["input"],
+                      "status": 400
+                    }
+                  },
+                  "input_too_long": {
+                    "value": {
+                      "error": "Input too long",
+                      "detail": "Input must be under 15,000 characters for optimal Deep Research performance",
+                      "input_length": 16500,
+                      "max_length": 15000,
+                      "status": 400
+                    }
+                  },
+                  "invalid_processor": {
+                    "value": {
+                      "error": "Invalid processor for Deep Research",
+                      "detail": "Deep Research requires 'pro' or 'ultra' processors",
+                      "provided_processor": "base",
+                      "valid_processors": [
+                        "pro",
+                        "ultra",
+                        "ultra2x",
+                        "ultra4x",
+                        "ultra8x"
+                      ],
+                      "status": 400
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Authentication required",
+                  "detail": "Missing x-api-key or Authorization header. Please provide a valid API key.",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Failed to create Deep Research task",
+                  "detail": "Internal server error occurred",
+                  "status": 500
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/v1beta/tasks/groups": {
+      "post": {
+        "summary": "Create Batch Task Group",
+        "description": "Creates a new task group for batch processing. Responds with a URL in format https://platform.parallel.ai/view/task-run-group/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here. NB: the url cannot be fetched or curl'ed as it's behind auth. \n\nAfter the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getTaskGroupResultsMarkdown` tool.",
+        "operationId": "createTaskGroup",
         "requestBody": {
           "required": true,
           "content": {
@@ -43,19 +166,9 @@
                 "required": ["inputs", "output_type", "output"],
                 "properties": {
                   "inputs": {
-                    "description": "JSON array of input objects to process. Start with a small batch (3-5 inputs) to test and validate results before scaling up, unless explicitly requested to process all inputs at once.",
+                    "description": "JSON array of input objects to process.\n\nIf the user clearly provides or desires tabular data, input multiple rows here.\n\n For large datasets, start with a small batch (3-5 inputs) to test and validate results before scaling up, unless explicitly requested to process all inputs at once.",
                     "type": "array",
-                    "items": { "type": "object" },
-                    "example": [
-                      {
-                        "company_name": "Apple",
-                        "website": "https://apple.com"
-                      },
-                      {
-                        "company_name": "Microsoft",
-                        "website": "https://microsoft.com"
-                      }
-                    ]
+                    "items": { "type": "object" }
                   },
                   "output_type": {
                     "type": "string",
@@ -435,6 +548,59 @@
             "description": "Error message"
           }
         }
+      },
+
+      "DeepResearchResponse": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "Task run identifier",
+            "example": "trun_abc123def456"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "running"],
+            "description": "Current status of the task run",
+            "example": "queued"
+          },
+          "processor": {
+            "type": "string",
+            "enum": ["pro", "ultra", "ultra2x", "ultra4x", "ultra8x"],
+            "description": "Processor being used for the research",
+            "example": "pro"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO timestamp when the task was created",
+            "example": "2025-01-30T20:12:18.123456Z"
+          },
+          "platform_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to view task progress in Parallel's web interface"
+          },
+          "estimated_duration": {
+            "type": "string",
+            "description": "Estimated completion time range",
+            "example": "5-25 minutes (Deep Research can take up to 45 minutes)"
+          },
+          "message": {
+            "type": "string",
+            "description": "Additional notes about the research configuration"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "processor",
+          "created_at",
+          "events_stream_url",
+          "platform_url",
+          "estimated_duration",
+          "notes"
+        ]
       }
     }
   }

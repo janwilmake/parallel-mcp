@@ -18,9 +18,16 @@ interface TaskGroupInput {
 const fetchHandler = async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
 
+  if (
+    url.pathname === "/v1beta/tasks/deep-research" &&
+    request.method === "POST"
+  ) {
+    return handleDeepResearch(request);
+  }
+
   // Handle multitask creation
-  if (url.pathname === "/v1beta/tasks/multitask" && request.method === "POST") {
-    return handleMultitask(request);
+  if (url.pathname === "/v1beta/tasks/groups" && request.method === "POST") {
+    return handleCreateTaskGroup(request);
   }
 
   // Handle task group results
@@ -50,11 +57,150 @@ export default {
     openapi,
     {
       authEndpoint: "/me",
-      serverInfo: { name: "Parallel Multitask MCP", version: "1.0.0" },
-      toolOperationIds: ["createMultitask", "getTaskGroupResultsMarkdown"],
+      serverInfo: { name: "Parallel Multitask MCP", version: "1.0.1" },
+      toolOperationIds: [
+        "createDeepResearch",
+        "createTaskGroup",
+        "getTaskGroupResultsMarkdown",
+      ],
     }
   ),
 } satisfies ExportedHandler;
+
+// Add this function to the worker.ts file
+async function handleDeepResearch(request: Request): Promise<Response> {
+  const apiKey = getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({
+        error: "Authentication required",
+        detail:
+          "Missing x-api-key or Authorization header. Please provide a valid API key.",
+        status: 401,
+      }),
+      {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
+
+  let body: { input: string; processor?: string };
+  try {
+    body = await request.json();
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        error: "Invalid JSON",
+        detail: "Request body must be valid JSON",
+        status: 400,
+      }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
+
+  // Validate required fields
+  if (!body.input) {
+    return new Response(
+      JSON.stringify({
+        error: "Missing required field",
+        detail: "'input' is a required field",
+        required_fields: ["input"],
+        received_fields: Object.keys(body),
+        status: 400,
+      }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
+
+  // Validate input length (15,000 character limit for optimal performance)
+  if (body.input.length > 15000) {
+    return new Response(
+      JSON.stringify({
+        error: "Input too long",
+        detail:
+          "Input must be under 15,000 characters for optimal Deep Research performance",
+        input_length: body.input.length,
+        max_length: 15000,
+        status: 400,
+      }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
+
+  // Default to 'pro' processor if not specified (minimum requirement for Deep Research)
+  let processor = body.processor || "pro";
+
+  // Validate processor is pro or ultra (required for Deep Research)
+  if (!["pro", "ultra", "ultra2x", "ultra4x", "ultra8x"].includes(processor)) {
+    return new Response(
+      JSON.stringify({
+        error: "Invalid processor for Deep Research",
+        detail: "Deep Research requires 'pro' or 'ultra' processors",
+        provided_processor: processor,
+        valid_processors: ["pro", "ultra", "ultra2x", "ultra4x", "ultra8x"],
+        status: 400,
+      }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
+
+  try {
+    // Initialize Parallel SDK client
+    const parallel = new Parallel({ apiKey });
+
+    // Create task run with Deep Research configuration
+    const taskRun = await parallel.beta.taskRun.create({
+      input: body.input,
+      processor: processor,
+      task_spec: {
+        output_schema: { type: "text" },
+      },
+      enable_events: true,
+      betas: ["events-sse-2025-07-24"],
+    });
+
+    const response = {
+      run_id: taskRun.run_id,
+      status: taskRun.status,
+      processor: taskRun.processor,
+      created_at: taskRun.created_at,
+      platform_url: `https://platform.parallel.ai/play/deep-research/${taskRun.run_id}`,
+      message:
+        "Deep Research enabled with text output format. Use the platform_url to view progress in the web interface",
+    };
+
+    return new Response(JSON.stringify(response, null, 2), {
+      status: 202,
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error("Error in handleDeepResearch:", error);
+    return new Response(
+      JSON.stringify({
+        error: "Failed to create Deep Research task",
+        detail: error.message,
+        status: 500,
+      }),
+      {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
+}
 
 async function handleTaskGroupResults(
   request: Request,
@@ -103,7 +249,7 @@ async function handleTaskGroupResults(
   }
 }
 
-async function handleMultitask(request: Request): Promise<Response> {
+async function handleCreateTaskGroup(request: Request): Promise<Response> {
   const apiKey = getApiKeyFromRequest(request);
   if (!apiKey) {
     return new Response(
@@ -170,7 +316,7 @@ async function handleMultitask(request: Request): Promise<Response> {
         } catch (parseError) {
           // Try as URL
           try {
-            const url = new URL(body.inputs);
+            new URL(body.inputs);
             const inputsResponse = await fetch(body.inputs);
             if (!inputsResponse.ok) {
               throw new Error(
@@ -390,9 +536,7 @@ async function handleMultitask(request: Request): Promise<Response> {
     const runInputs = inputs.map((input, index) => ({
       input,
       processor: processor as string,
-      metadata: {
-        input_index: index.toString(),
-      },
+      metadata: { input_index: index.toString() },
       // TODO: Add source_policy and mcp_servers when needed
       // source_policy,
       // mcp_servers,

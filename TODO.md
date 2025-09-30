@@ -1,8 +1,12 @@
 # TODO
 
-1. Add instructions to the team onto README on how to deploy task-mcp to a staging URL.
-2. Try editing prompt to instruct it to do a deep research taks
-3. if the results there aren't great,
+✅ Ensure it doesn't use curl or fetch with the url, url is only for clicking. use other tool for retreiving as markdown
+
+✅ Try editing prompt to instruct it to do a deep research TaskSDK. Maybe we can completely omit `inputs` since it's just text output. If the results there aren't great, maybe another tool for a deep research works better.
+
+✅ The MCP should be able to choose to do a single deep research as well. A single deep research just requires inputting
+
+🤔 The team wants to see reasoning traces while the task is being executed. This would mean blocking the thing to continue and showing updates, or, if async toolcalls are possible, sending status updates to the client to show latest reasoning.
 
 # Testing & Demos
 
