@@ -5,13 +5,13 @@
       "protocolVersion": "2025-03-26",
       "toolOperationIds": [
         "createTaskGroup",
-        "getTaskGroupResultsMarkdown",
+        "getResultMarkdown",
         "createDeepResearch"
       ],
       "authEndpoint": "/me"
     },
     "title": "Parallel.ai Multitask API",
-    "description": "Perform Deep Research or Create Task Groups using Parallel.ai. \n\n- For doing a single deep research where detailed unstructured output is preferred, use 'createDeepResearch'.\n- When tabular data is preferred with more structured data enrichment, a task group (createTaskGroup + getTaskGroupResultsMarkdown) is more useful.",
+    "description": "Perform Deep Research or Create Task Groups using Parallel.ai. \n\n- For doing a single deep research where detailed unstructured output is preferred, use 'createDeepResearch'.\n- When tabular data is preferred with more structured data enrichment, a task group (createTaskGroup + getResultMarkdown) is more useful.",
     "version": "1.0.0",
     "contact": {
       "name": "Parallel.ai",
@@ -151,11 +151,10 @@
         }
       }
     },
-
     "/v1beta/tasks/groups": {
       "post": {
         "summary": "Create Batch Task Group",
-        "description": "Creates a new task group for batch processing. Responds with a URL in format https://platform.parallel.ai/view/task-run-group/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here. NB: the url cannot be fetched or curl'ed as it's behind auth. \n\nAfter the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getTaskGroupResultsMarkdown` tool.",
+        "description": "Creates a new task group for batch processing. Responds with a URL in format https://platform.parallel.ai/view/task-run-group/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here. NB: the url cannot be fetched or curl'ed as it's behind auth. \n\nAfter the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getResultMarkdown` tool.",
         "operationId": "createTaskGroup",
         "requestBody": {
           "required": true,
@@ -251,20 +250,20 @@
         }
       }
     },
-    "/{taskGroupId}": {
+    "/{taskRunOrGroupId}": {
       "get": {
-        "summary": "Get Task Group Results",
-        "description": "Retrieves task group results in various formats",
-        "operationId": "getTaskGroupResults",
+        "summary": "Get Task Run or Task Group Results",
+        "description": "Retrieves task run or task group results in various formats",
+        "operationId": "getTaskRunOrGroupResults",
         "parameters": [
           {
-            "name": "taskGroupId",
+            "name": "taskRunOrGroupId",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string"
             },
-            "description": "Task group identifier"
+            "description": "Task run identifier (trun_*) or task group identifier (tgrp_*)"
           },
           {
             "name": "Accept",
@@ -279,11 +278,18 @@
         ],
         "responses": {
           "200": {
-            "description": "Task group results",
+            "description": "Task run or task group results",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskGroupResults"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskGroupResults"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TaskRunResults"
+                    }
+                  ]
                 }
               },
               "text/html": {
@@ -299,25 +305,25 @@
             }
           },
           "404": {
-            "description": "Task group not found"
+            "description": "Task run or task group not found"
           }
         }
       }
     },
-    "/{taskGroupId}.md": {
+    "/{taskRunOrGroupId}.md": {
       "get": {
-        "summary": "Get Task Group Results as Markdown",
-        "operationId": "getTaskGroupResultsMarkdown",
-        "description": "Get Task Group Results as Markdown with optional basis information",
+        "summary": "Get Task Run or Task Group Results as Markdown",
+        "operationId": "getResultMarkdown",
+        "description": "Get Task Run or Task Group Results as Markdown with optional basis information (for task groups)",
         "parameters": [
           {
-            "name": "taskGroupId",
+            "name": "taskRunOrGroupId",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string"
             },
-            "description": "Task group identifier"
+            "description": "Task run identifier (trun_*) or task group identifier (tgrp_*)"
           },
           {
             "name": "basis",
@@ -327,7 +333,7 @@
               "type": "string",
               "pattern": "^(all|index:[0-9]+|field:[a-zA-Z_][a-zA-Z0-9_]*)$"
             },
-            "description": "Optional: Include basis information - 'all' for all results, 'index:{number}' for specific index, or 'field:{fieldname}' for specific field\n\nNB: Only use this when needed as it consumes a lot of tokens.",
+            "description": "Optional: Include basis information for task groups - 'all' for all results, 'index:{number}' for specific index, or 'field:{fieldname}' for specific field\n\nNB: Only use this when needed as it consumes a lot of tokens. Only applicable for task groups (tgrp_*).",
             "examples": {
               "all": {
                 "value": "all",
@@ -346,7 +352,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Task group results in Markdown format",
+            "description": "Task run or task group results in Markdown format",
             "content": {
               "text/markdown": {
                 "schema": {
@@ -356,7 +362,7 @@
             }
           },
           "404": {
-            "description": "Task group not found"
+            "description": "Task run or task group not found"
           }
         }
       }
@@ -437,6 +443,34 @@
             "items": {
               "$ref": "#/components/schemas/TaskRun"
             }
+          }
+        }
+      },
+      "TaskRunResults": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "Task run identifier"
+          },
+          "task_run": {
+            "type": "object",
+            "description": "Task run details"
+          },
+          "events": {
+            "type": "array",
+            "description": "Event stream from the task run",
+            "items": {
+              "type": "object"
+            }
+          },
+          "progress_stats": {
+            "type": "object",
+            "description": "Progress statistics"
+          },
+          "output": {
+            "type": "object",
+            "description": "Task run output"
           }
         }
       },
@@ -539,7 +573,6 @@
           }
         }
       },
-
       "ErrorResponse": {
         "type": "object",
         "properties": {
@@ -549,7 +582,6 @@
           }
         }
       },
-
       "DeepResearchResponse": {
         "type": "object",
         "properties": {

@@ -1,12 +1,34 @@
-# TODO
+# Failure modes
 
-✅ Ensure it doesn't use curl or fetch with the url, url is only for clicking. use other tool for retreiving as markdown
+- People may have many other tools enabled (e.g. if they have a `fetch` tool, the LLM may try to use it with the URL, which won't work)
+- People could use this MCP with a tiny model. The tiny model won't be as good reasoning
+- People may upload unreadable files or very large input datasets. This could clutter the context window making it harder to be used.
 
-✅ Try editing prompt to instruct it to do a deep research TaskSDK. Maybe we can completely omit `inputs` since it's just text output. If the results there aren't great, maybe another tool for a deep research works better.
+How to test the MCP properly? This is HARD.
 
-✅ The MCP should be able to choose to do a single deep research as well. A single deep research just requires inputting
+# Pending to be fixed (Manvesh)
 
-🤔 The team wants to see reasoning traces while the task is being executed. This would mean blocking the thing to continue and showing updates, or, if async toolcalls are possible, sending status updates to the client to show latest reasoning.
+- input shows in several columns (now shows 1 column if input is structured data)
+- deep research platform url works
+- ✅ cursor deeplink works for installation
+- footnotes are in markdown syntax ([^N])
+
+# Reasoning traces
+
+🤔 The team wants to see reasoning traces while the task is being executed. This would mean blocking the thing to continue and showing updates, or, if async tool-calls are possible, sending status updates to the client to show latest reasoning.
+
+- Option 1: Long running MCP with streaming notifications (may not work >30s in most clients, may work well in some coding clients)
+- Option 2: Wait for async MCP (https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1391)
+- Option 3: Creating a streaming Chat Completions endpoint from it, so it can be added to different clients, and returns reasoning traces.
+- Option 4: Explore using MCP UI so we actually can have the full-fledged platform interface, but control stuff with MCP
+
+Best course of action now: start with AISDK `@parallel-web/ai-sdk` with:
+
+- easy to configure search as tool (ability to pre-configure with simple ways to alter how large response-context will be)
+- search chat completions as model
+- task to `/chat/completions` stream proxy and use that for `generateText`, `generateObject`, `streamText`, `streamObject`
+
+The chat completions endpoint is then also able to be used as MCP (use notifications as in https://github.com/janwilmake/chat-completions-mcp)
 
 # Testing & Demos
 
@@ -17,8 +39,6 @@ Think about:
 - which MCP client
 - which data source / data destination
 - authentic use cases
-
-<!-- It's demo time. The thing fucking works! Ideally I make highly authentic demos that show the benefit and experimental process. This is a testing ground. The ones that get engagement can be turned into professional blogs with more enterprise use-case -->
 
 - VScode demo: new!
 

@@ -30,16 +30,21 @@ const fetchHandler = async (request: Request): Promise<Response> => {
     return handleCreateTaskGroup(request);
   }
 
-  // Handle task group results
+  // Handle task group results and task run results
   const pathMatch = url.pathname.match(
-    /^\/([a-zA-Z0-9_-]+)(?:\.(json|md|html))?$/
+    /^\/((tgrp|trun)_[a-zA-Z0-9_-]+)(?:\.(json|md|html))?$/
   );
   if (pathMatch) {
-    const taskGroupId = pathMatch[1];
+    const id = pathMatch[1];
+    const idType = pathMatch[2]; // "tgrp" or "trun"
     const format =
-      pathMatch[2] || getFormatFromAccept(request.headers.get("accept"));
+      pathMatch[3] || getFormatFromAccept(request.headers.get("accept"));
 
-    return handleTaskGroupResults(request, taskGroupId, format);
+    if (idType === "tgrp") {
+      return handleTaskGroupResults(request, id, format);
+    } else if (idType === "trun") {
+      return handleTaskRunResults(request, id, format);
+    }
   }
 
   return new Response("Not Found", { status: 404 });
@@ -61,7 +66,7 @@ export default {
       toolOperationIds: [
         "createDeepResearch",
         "createTaskGroup",
-        "getTaskGroupResultsMarkdown",
+        "getResultMarkdown",
       ],
     }
   ),
@@ -177,9 +182,9 @@ async function handleDeepResearch(request: Request): Promise<Response> {
       status: taskRun.status,
       processor: taskRun.processor,
       created_at: taskRun.created_at,
-      platform_url: `https://platform.parallel.ai/play/deep-research/${taskRun.run_id}`,
+      platform_url: `https://platform.parallel.ai/view/task-run/${taskRun.run_id}`,
       message:
-        "Deep Research enabled with text output format. Use the platform_url to view progress in the web interface",
+        "Deep Research enabled with text output format. Use the platform_url for the web interface",
     };
 
     return new Response(JSON.stringify(response, null, 2), {
@@ -199,6 +204,46 @@ async function handleDeepResearch(request: Request): Promise<Response> {
         headers: { "content-type": "application/json" },
       }
     );
+  }
+}
+
+async function handleTaskRunResults(
+  request: Request,
+  runId: string,
+  format: string
+): Promise<Response> {
+  const apiKey = getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: `/authorize?redirect_to=${encodeURIComponent(request.url)}`,
+      },
+    });
+  }
+
+  try {
+    const data = await getTaskRunData(apiKey, runId);
+
+    switch (format) {
+      case "md":
+        return new Response(formatTaskRunAsMarkdown(data), {
+          headers: { "content-type": "text/markdown;charset=utf8" },
+        });
+
+      // case "html":
+      //   return new Response(formatTaskRunAsHTML(data), {
+      //     headers: { "content-type": "text/html;charset=utf8" },
+      //   });
+
+      default:
+        return new Response(JSON.stringify(data, null, 2), {
+          headers: { "content-type": "application/json;charset=utf8" },
+        });
+    }
+  } catch (error) {
+    console.error("Error fetching task run data:", error);
+    return new Response(`Error: ${error.message}`, { status: 500 });
   }
 }
 
@@ -654,6 +699,70 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
   }
 }
 
+async function getTaskRunData(apiKey: string, runId: string): Promise<any> {
+  const parallel = new Parallel({ apiKey });
+
+  // Collect all events from the stream
+  const events: any[] = [];
+  let progressStats: any = null;
+  let output: any = null;
+  let taskRunData: any = null;
+
+  try {
+    const eventStream = await parallel.beta.taskRun.events(runId);
+    let lastEventTime = Date.now();
+    const timeout = 1000; // 1 second timeout
+
+    // Create a timeout promise that rejects after the specified time
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      const timeoutId = setInterval(() => {
+        if (Date.now() - lastEventTime > timeout) {
+          clearInterval(timeoutId);
+          reject(new Error("Stream timeout - no events for 1 second"));
+        }
+      }, 100); // Check every 100ms
+    });
+
+    // Create the stream processing promise
+    const streamPromise = (async () => {
+      for await (const event of eventStream) {
+        lastEventTime = Date.now();
+        events.push(event);
+
+        if (event.type === "task_run.progress_stats") {
+          progressStats = event.source_stats;
+        } else if (event.type === "task_run.state") {
+          taskRunData = event.run;
+          if (event.output) {
+            output = event.output;
+          }
+        }
+      }
+    })();
+
+    // Race between stream processing and timeout
+    try {
+      await Promise.race([streamPromise, timeoutPromise]);
+    } catch (timeoutError) {
+      // Timeout occurred - this is expected behavior
+      console.log(
+        `Stream stopped after 1 second of inactivity for run ${runId}`
+      );
+    }
+  } catch (error) {
+    console.error("Error streaming events:", error);
+    // Continue with just the task run data if streaming fails
+  }
+
+  return {
+    run_id: runId,
+    task_run: taskRunData,
+    events,
+    progress_stats: progressStats,
+    output,
+  };
+}
+
 async function getTaskGroupData(
   apiKey: string,
   taskGroupId: string
@@ -735,6 +844,257 @@ async function getTaskGroupData(
     results,
     runs,
   };
+}
+
+interface TaskRunEvent {
+  type: string;
+  timestamp?: string;
+  message?: string;
+  source_stats?: TaskRunSourceStats;
+  run?: TaskRun;
+  input?: any;
+  output?: TaskRunOutput;
+}
+
+interface TaskRunSourceStats {
+  num_sources_considered: number | null;
+  num_sources_read: number | null;
+  sources_read_sample: string[] | null;
+}
+
+interface TaskRun {
+  run_id: string;
+  status: string;
+  is_active: boolean;
+  processor: string;
+  created_at: string;
+  modified_at: string;
+  metadata?: Record<string, string | number | boolean>;
+  warnings?: Warning[];
+  error?: TaskRunError;
+}
+
+interface Warning {
+  type: string;
+  message: string;
+  detail?: Record<string, unknown>;
+}
+
+interface TaskRunError {
+  ref_id: string;
+  message: string;
+  detail?: Record<string, unknown>;
+}
+
+interface TaskRunOutput {
+  type: "text" | "json";
+  content: string | Record<string, unknown>;
+  basis?: FieldBasis[];
+}
+
+interface FieldBasis {
+  field: string;
+  reasoning?: string;
+  confidence?: "high" | "medium" | "low";
+  citations?: Citation[];
+}
+
+interface Citation {
+  title?: string;
+  url: string;
+  excerpts?: string[];
+}
+
+interface TaskRunData {
+  run_id: string;
+  task_run: TaskRun | null;
+  events: TaskRunEvent[];
+  progress_stats: TaskRunSourceStats | null;
+  output: TaskRunOutput | null;
+}
+
+function formatTaskRunAsMarkdown(data: TaskRunData): string {
+  let md = `# Task Run Results\n\n`;
+  md += `**Run ID:** ${data.run_id}\n`;
+
+  // Only show task run details if available
+  if (data.task_run) {
+    md += `**Status:** ${
+      data.task_run.is_active
+        ? "🟡 Active"
+        : getStatusEmoji(data.task_run.status)
+    } ${data.task_run.status}\n`;
+    md += `**Processor:** ${data.task_run.processor}\n`;
+    md += `**Created:** ${data.task_run.created_at}\n`;
+    md += `**Modified:** ${data.task_run.modified_at}\n`;
+
+    if (
+      data.task_run.metadata &&
+      Object.keys(data.task_run.metadata).length > 0
+    ) {
+      md += `\n**Metadata:**\n`;
+      for (const [key, value] of Object.entries(data.task_run.metadata)) {
+        md += `- **${key}:** ${JSON.stringify(value)}\n`;
+      }
+    }
+  }
+
+  // Add progress stats if available
+  if (data.progress_stats) {
+    md += `\n## 📊 Progress Statistics\n\n`;
+    md += `- **Sources Considered:** ${
+      data.progress_stats.num_sources_considered ?? "N/A"
+    }\n`;
+    md += `- **Sources Read:** ${
+      data.progress_stats.num_sources_read ?? "N/A"
+    }\n`;
+    if (
+      data.progress_stats.sources_read_sample &&
+      data.progress_stats.sources_read_sample.length > 0
+    ) {
+      md += `- **Sample Sources:**\n`;
+      data.progress_stats.sources_read_sample
+        // lets take just the first 10
+        .slice(0, 10)
+        .forEach((source: string, index: number) => {
+          md += `  ${index + 1}. ${source}\n`;
+        });
+    }
+  }
+
+  // Show warnings if any
+  if (data.task_run?.warnings && data.task_run.warnings.length > 0) {
+    md += `\n## ⚠️ Warnings\n\n`;
+    data.task_run.warnings.forEach((warning: Warning, index: number) => {
+      md += `${index + 1}. **${warning.type}:** ${warning.message}\n`;
+      if (warning.detail) {
+        md += `   - Detail: ${JSON.stringify(warning.detail)}\n`;
+      }
+    });
+  }
+
+  // Show error if failed
+  if (data.task_run?.status === "failed" && data.task_run.error) {
+    md += `\n## ❌ Error Details\n\n`;
+    md += `**Error ID:** ${data.task_run.error.ref_id}\n\n`;
+    md += `**Message:** ${data.task_run.error.message}\n\n`;
+    if (data.task_run.error.detail) {
+      md += `**Additional Details:**\n`;
+      md += `\`\`\`json\n${JSON.stringify(
+        data.task_run.error.detail,
+        null,
+        2
+      )}\n\`\`\`\n\n`;
+    }
+  }
+
+  // Show output if task is complete and has output
+  if (data.output && data.output.content) {
+    md += `\n## 📄 Output\n\n`;
+
+    if (data.output.type === "text") {
+      md += data.output.content as string;
+    } else if (data.output.type === "json") {
+      md += `\`\`\`json\n${JSON.stringify(
+        data.output.content,
+        null,
+        2
+      )}\n\`\`\`\n`;
+
+      // Show basis/citations only for JSON outputs
+      if (data.output.basis && data.output.basis.length > 0) {
+        md += `\n## 📚 Sources & Citations\n\n`;
+        data.output.basis.forEach((basis: FieldBasis) => {
+          if (basis.field) {
+            md += `### Field: ${basis.field}\n\n`;
+          }
+          if (basis.reasoning) {
+            md += `**Reasoning:** ${basis.reasoning}\n\n`;
+          }
+          if (basis.confidence) {
+            const confidenceEmoji =
+              basis.confidence === "high"
+                ? "🟢"
+                : basis.confidence === "medium"
+                ? "🟡"
+                : "🔴";
+            md += `**Confidence:** ${confidenceEmoji} ${basis.confidence}\n\n`;
+          }
+          if (basis.citations && basis.citations.length > 0) {
+            md += `**Citations:**\n`;
+            basis.citations.forEach((citation: Citation, index: number) => {
+              md += `${index + 1}. `;
+              if (citation.title) {
+                md += `**${citation.title}** - `;
+              }
+              md += `[${citation.url}](${citation.url})\n`;
+              if (citation.excerpts && citation.excerpts.length > 0) {
+                citation.excerpts.forEach((excerpt: string) => {
+                  md += `   > ${excerpt}\n`;
+                });
+              }
+            });
+            md += `\n`;
+          }
+        });
+      }
+    }
+  } else if (data.task_run?.is_active && data.events.length > 0) {
+    // Show progress events if task is still active and no output yet
+    md += `\n## 🔄 Live Progress\n\n`;
+
+    const progressMessages = data.events.filter((event: TaskRunEvent) =>
+      event.type.startsWith("task_run.progress_msg")
+    );
+
+    if (progressMessages.length > 0) {
+      md += `### Recent Activity\n\n`;
+      progressMessages.slice(-10).forEach((event: TaskRunEvent) => {
+        const timestamp = event.timestamp
+          ? new Date(event.timestamp).toLocaleTimeString()
+          : "Unknown time";
+        const eventType = event.type.replace("task_run.progress_msg.", "");
+        const icon = getProgressIcon(eventType);
+        md += `- **${timestamp}** ${icon} ${event.message}\n`;
+      });
+    }
+  }
+
+  return md;
+}
+
+function getStatusEmoji(status: string): string {
+  switch (status) {
+    case "completed":
+      return "✅";
+    case "failed":
+      return "❌";
+    case "running":
+      return "🟡";
+    case "queued":
+      return "⏳";
+    case "cancelled":
+      return "🚫";
+    default:
+      return "🟡";
+  }
+}
+
+function getProgressIcon(eventType: string): string {
+  switch (eventType) {
+    case "plan":
+      return "📋";
+    case "search":
+      return "🔍";
+    case "result":
+      return "📊";
+    case "tool_call":
+      return "🔧";
+    case "exec_status":
+      return "⚙️";
+    default:
+      return "📝";
+  }
 }
 
 function getApiKeyFromRequest(request: Request): string | null {

@@ -80,3 +80,13 @@ OAuth
 - ✅ Make processor description pricing aware
 - ✅ Add description for inputs to be cautious adding too many inputs at once unless the user explicitnly says all
 - ✅ Logo doesnt show up for task-mcp.parallel.ai. In claude it does though so it's fine I guess.
+
+# Improve prompting MCP (2025-09-30)
+
+✅ Ensure it doesn't use curl or fetch with the url, url is only for clicking. use other tool for retreiving as markdown
+
+✅ Try editing prompt to instruct it to do a deep research TaskSDK. Maybe we can completely omit `inputs` since it's just text output. If the results there aren't great, maybe another tool for a deep research works better.
+
+✅ The MCP should be able to choose to do a single deep research as well. A single deep research just requires inputting
+
+✅ Make task run status viewable in markdown using the same `getResult` tool (keeps MCP definition short)
