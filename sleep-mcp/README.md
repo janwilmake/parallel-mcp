@@ -2,6 +2,13 @@
 
 This MCP server provides a simple `sleep` tool that demonstrates progress notifications in the Model Context Protocol.
 
+See the screenshots for evidence that it works (or doesn't) in different clients:
+
+- Inspector works and receives notifications and messages
+- Cursor seems fine, easily sleeps for 15m. Only shows progress.
+- VSCode seems fine, still going for the 45m. Only shows progress.
+- Claude.ai times out for 6 minutes, but succeeds for 3 minutes. Does NOT show messages or progress. After failing a few times, 3 minutes now also fails. Unreliable. Also doesn't show intermittent output after navigating away and back.
+
 ## Features
 
 - **Sleep Tool**: Sleep for a specified number of seconds (1-60)

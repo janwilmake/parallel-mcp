@@ -35,7 +35,7 @@ export async function handleSleepMcp(request: Request): Promise<Response> {
           jsonrpc: "2.0",
           id: message.id,
           result: {
-            protocolVersion: "2025-03-26",
+            protocolVersion: "2025-06-18",
             capabilities: { tools: {} },
             serverInfo: {
               name: "Sleep-MCP-Server",
@@ -44,20 +44,17 @@ export async function handleSleepMcp(request: Request): Promise<Response> {
           },
         }),
         {
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers":
-              "Content-Type, Authorization, Accept",
-          },
+          headers: getCorsHeaders("application/json"),
         }
       );
     }
 
     // Handle initialized notification
     if (message.method === "notifications/initialized") {
-      return new Response(null, { status: 202 });
+      return new Response(null, {
+        status: 202,
+        headers: getCorsHeaders(),
+      });
     }
 
     // Handle tools/list
@@ -67,7 +64,7 @@ export async function handleSleepMcp(request: Request): Promise<Response> {
           name: "sleep",
           title: "Sleep Timer",
           description:
-            "Sleep for a specified number of seconds with progress updates",
+            "Sleep for a specified number of seconds with progress updates every 10 seconds",
           inputSchema: {
             type: "object",
             properties: {
@@ -90,26 +87,20 @@ export async function handleSleepMcp(request: Request): Promise<Response> {
           result: { tools },
         }),
         {
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers":
-              "Content-Type, Authorization, Accept",
-          },
+          headers: getCorsHeaders("application/json"),
         }
       );
     }
 
     // Handle tools/call
     if (message.method === "tools/call") {
-      const { name, arguments: args, _meta } = message.params;
+      const { name, arguments: args, _meta } = message.params || {};
 
       if (name !== "sleep") {
         return createError(message.id, -32602, `Unknown tool: ${name}`);
       }
 
-      if (!args.seconds || typeof args.seconds !== "number") {
+      if (!args?.seconds || typeof args.seconds !== "number") {
         return createError(
           message.id,
           -32602,
@@ -126,148 +117,22 @@ export async function handleSleepMcp(request: Request): Promise<Response> {
         );
       }
 
+      // Check if progress token is provided for progress notifications
+      const progressToken = _meta?.progressToken;
+      const shouldSendProgress = !!progressToken;
+
       try {
-        // Check accept header from original request
-        const acceptHeader = request.headers.get("accept");
-        const isStreaming = acceptHeader?.includes("text/event-stream");
-
-        if (isStreaming) {
-          // Handle streaming response with Server-Sent Events
-          const stream = new ReadableStream({
-            start(controller) {
-              const processSleep = async () => {
-                try {
-                  let currentSecond = 0;
-
-                  // Send progress notifications every second
-                  const interval = setInterval(() => {
-                    currentSecond++;
-
-                    // Send progress notification
-                    const notification = JSON.stringify({
-                      jsonrpc: "2.0",
-                      method: "notifications/progress",
-                      params: {
-                        progressToken: _meta.progressToken,
-                        progress: currentSecond,
-                        total: seconds,
-                        message: `${currentSecond}/${seconds}`,
-                      },
-                    });
-
-                    const event = `data: ${notification}\n\n`;
-                    controller.enqueue(new TextEncoder().encode(event));
-
-                    // Check if we're done
-                    if (currentSecond >= seconds) {
-                      clearInterval(interval);
-
-                      // Send final response
-                      const finalResponse = JSON.stringify({
-                        jsonrpc: "2.0",
-                        id: message.id,
-                        result: {
-                          content: [
-                            {
-                              type: "text",
-                              text: `slept ${seconds} seconds`,
-                            },
-                          ],
-                          isError: false,
-                        },
-                      });
-
-                      controller.enqueue(
-                        new TextEncoder().encode(`data: ${finalResponse}\n\n`)
-                      );
-                      controller.close();
-                    }
-                  }, 1000); // Send update every 1000ms (1 second)
-                } catch (error) {
-                  // Send error response
-                  const errorResponse = JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: message.id,
-                    error: {
-                      code: -32603,
-                      message: `Error during sleep: ${error.message}`,
-                    },
-                  });
-                  controller.enqueue(
-                    new TextEncoder().encode(`data: ${errorResponse}\n\n`)
-                  );
-                  controller.close();
-                }
-              };
-
-              processSleep();
-            },
-          });
-
-          return new Response(stream, {
-            headers: {
-              "Content-Type": "text/event-stream",
-              "Cache-Control": "no-cache",
-              Connection: "keep-alive",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Methods": "POST, OPTIONS",
-              "Access-Control-Allow-Headers":
-                "Content-Type, Authorization, Accept",
-            },
-          });
+        if (shouldSendProgress) {
+          // Handle with progress notifications using Server-Sent Events
+          return handleSleepWithProgress(message, seconds, progressToken);
         } else {
-          // Handle non-streaming response (just sleep and return final result)
-          await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-
-          return new Response(
-            JSON.stringify({
-              jsonrpc: "2.0",
-              id: message.id,
-              result: {
-                content: [
-                  {
-                    type: "text",
-                    text: `slept ${seconds} seconds`,
-                  },
-                ],
-                isError: false,
-              },
-            }),
-            {
-              headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers":
-                  "Content-Type, Authorization, Accept",
-              },
-            }
-          );
+          // Handle simple sleep without progress
+          return handleSimpleSleep(message, seconds);
         }
       } catch (error) {
-        return new Response(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            id: message.id,
-            result: {
-              content: [
-                {
-                  type: "text",
-                  text: `Error executing sleep: ${error.message}`,
-                },
-              ],
-              isError: true,
-            },
-          }),
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Methods": "POST, OPTIONS",
-              "Access-Control-Allow-Headers":
-                "Content-Type, Authorization, Accept",
-            },
-          }
+        return createToolError(
+          message.id,
+          `Error executing sleep: ${error.message}`
         );
       }
     }
@@ -282,6 +147,195 @@ export async function handleSleepMcp(request: Request): Promise<Response> {
   }
 }
 
+async function handleSleepWithProgress(
+  message: any,
+  seconds: number,
+  progressToken: string
+): Promise<Response> {
+  const stream = new ReadableStream({
+    start(controller) {
+      let currentSecond = 0;
+      let interval: NodeJS.Timeout | null = null;
+
+      const cleanup = () => {
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+      };
+
+      const sendProgress = () => {
+        if (currentSecond < seconds) {
+          const progress = {
+            jsonrpc: "2.0",
+            method: "notifications/progress",
+            params: {
+              progressToken,
+              progress: currentSecond,
+              total: seconds,
+              message: `Sleeping progress: ${currentSecond}/${seconds} seconds elapsed`,
+            },
+          };
+
+          try {
+            controller.enqueue(
+              new TextEncoder().encode(`data: ${JSON.stringify(progress)}\n\n`)
+            );
+          } catch (error) {
+            console.error("Error sending progress:", error);
+            cleanup();
+            controller.error(error);
+          }
+
+          const message = {
+            jsonrpc: "2.0",
+            method: "notifications/message",
+            params: {
+              level: "info",
+              data: `Sleeping message: ${currentSecond}/${seconds} seconds elapsed`,
+              logger: "user-service",
+            },
+          };
+          try {
+            controller.enqueue(
+              new TextEncoder().encode(`data: ${JSON.stringify(message)}\n\n`)
+            );
+          } catch (error) {
+            console.error("Error sending progress:", error);
+            cleanup();
+            controller.error(error);
+          }
+        }
+      };
+
+      const processSleep = async () => {
+        try {
+          // Send initial progress
+          sendProgress();
+
+          // Set up interval to send progress every 10 seconds
+          interval = setInterval(() => {
+            currentSecond = Math.min(currentSecond + 10, seconds);
+            sendProgress();
+
+            // If we've reached the end, finish up
+            if (currentSecond >= seconds) {
+              cleanup();
+
+              // Send final response after a short delay to ensure progress was sent
+              setTimeout(() => {
+                const finalResponse = {
+                  jsonrpc: "2.0",
+                  id: message.id,
+                  result: {
+                    content: [
+                      {
+                        type: "text",
+                        text: `Successfully slept for ${seconds} seconds`,
+                      },
+                    ],
+                    isError: false,
+                  },
+                };
+
+                try {
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `data: ${JSON.stringify(finalResponse)}\n\n`
+                    )
+                  );
+                  controller.close();
+                } catch (error) {
+                  console.error("Error sending final response:", error);
+                  controller.error(error);
+                }
+              }, 100);
+            }
+          }, 10000); // 10 seconds
+
+          // Actually sleep for the full duration
+          await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+        } catch (error) {
+          cleanup();
+          const errorResponse = {
+            jsonrpc: "2.0",
+            id: message.id,
+            error: {
+              code: -32603,
+              message: `Error during sleep: ${error.message}`,
+            },
+          };
+
+          try {
+            controller.enqueue(
+              new TextEncoder().encode(
+                `data: ${JSON.stringify(errorResponse)}\n\n`
+              )
+            );
+            controller.close();
+          } catch (controllerError) {
+            controller.error(controllerError);
+          }
+        }
+      };
+
+      processSleep();
+    },
+  });
+
+  return new Response(stream, {
+    headers: getCorsHeaders("text/event-stream", {
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    }),
+  });
+}
+
+async function handleSimpleSleep(
+  message: any,
+  seconds: number
+): Promise<Response> {
+  // Simple sleep without progress notifications
+  await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+
+  return new Response(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: message.id,
+      result: {
+        content: [
+          {
+            type: "text",
+            text: `Successfully slept for ${seconds} seconds`,
+          },
+        ],
+        isError: false,
+      },
+    }),
+    {
+      headers: getCorsHeaders("application/json"),
+    }
+  );
+}
+
+function getCorsHeaders(
+  contentType?: string,
+  additionalHeaders?: Record<string, string>
+) {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+    ...additionalHeaders,
+  };
+
+  if (contentType) {
+    headers["Content-Type"] = contentType;
+  }
+
+  return headers;
+}
+
 function createError(id: any, code: number, message: string) {
   return new Response(
     JSON.stringify({
@@ -291,12 +345,28 @@ function createError(id: any, code: number, message: string) {
     }),
     {
       status: 200, // JSON-RPC errors use 200 status
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+      headers: getCorsHeaders("application/json"),
+    }
+  );
+}
+
+function createToolError(id: any, errorMessage: string) {
+  return new Response(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id,
+      result: {
+        content: [
+          {
+            type: "text",
+            text: errorMessage,
+          },
+        ],
+        isError: true,
       },
+    }),
+    {
+      headers: getCorsHeaders("application/json"),
     }
   );
 }
