@@ -4,15 +4,47 @@
 import { withMcp } from "with-mcp";
 import Parallel from "parallel-web";
 import { withSimplerAuth } from "simplerauth-client";
+import { Client } from "@neondatabase/serverless";
+
 //@ts-ignore
 import openapi from "./openapi.json";
 import { env } from "cloudflare:workers";
-
+type SourcePolicy = { include_domains?: string[]; exclude_domains?: string[] };
 interface TaskGroupInput {
   inputs: string | { [key: string]: unknown }[];
   processor?: string;
   output_type: "text" | "json";
   output?: string;
+  source_policy?: SourcePolicy;
+}
+
+// Logging wrapper for MCP tools
+async function logMcpToolCall(
+  toolName: string,
+  input: any,
+  isSuccessful: boolean,
+  output: any,
+  sessionId: string | null
+) {
+  try {
+    const client = new Client({ database: (env as any).DATABASE_URL });
+    await client.connect();
+
+    await client.query(
+      "INSERT INTO logs (session_id, tool_name, input, is_successful, output) VALUES ($1, $2, $3, $4, $5)",
+      [
+        sessionId,
+        toolName,
+        JSON.stringify(input),
+        isSuccessful,
+        JSON.stringify(output),
+      ]
+    );
+
+    await client.end();
+  } catch (error) {
+    console.error("Failed to log MCP tool call:", error);
+  }
 }
 
 const fetchHandler = async (request: Request): Promise<Response> => {
@@ -90,7 +122,7 @@ async function handleDeepResearch(request: Request): Promise<Response> {
     );
   }
 
-  let body: { input: string; processor?: string };
+  let body: { input: string; processor?: string; source_policy?: SourcePolicy };
   try {
     body = await request.json();
   } catch (error) {
@@ -170,9 +202,8 @@ async function handleDeepResearch(request: Request): Promise<Response> {
     const taskRun = await parallel.beta.taskRun.create({
       input: body.input,
       processor: processor,
-      task_spec: {
-        output_schema: { type: "text" },
-      },
+      task_spec: { output_schema: { type: "text" } },
+      source_policy: body.source_policy,
       enable_events: true,
       betas: ["events-sse-2025-07-24"],
     });
@@ -420,8 +451,135 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
       );
     }
 
+    interface JsonSchema {
+      type: string | string[];
+      properties?: Record<string, JsonSchema>;
+      items?: JsonSchema;
+      additionalProperties?: boolean;
+      required?: string[];
+      nullable?: boolean;
+    }
+
+    const getJsonSchemaFromObjectArray = (
+      inputs: { [key: string]: unknown }[]
+    ): JsonSchema => {
+      if (inputs.length === 0) {
+        return { type: "object", properties: {}, additionalProperties: false };
+      }
+
+      // Collect all unique properties and their types
+      const propertyTypes = new Map<string, Set<string>>();
+      const propertyNullable = new Map<string, boolean>();
+      const propertyCount = new Map<string, number>();
+      const arrayItemTypes = new Map<string, Set<string>>();
+
+      inputs.forEach((obj) => {
+        const objKeys = new Set(Object.keys(obj));
+
+        // Track which properties appear in this object
+        propertyTypes.forEach((_, key) => {
+          if (!objKeys.has(key)) {
+            // Property is missing in this object, so it's optional
+            propertyCount.set(key, propertyCount.get(key) || 0);
+          }
+        });
+
+        Object.entries(obj).forEach(([key, value]) => {
+          // Initialize tracking for new properties
+          if (!propertyTypes.has(key)) {
+            propertyTypes.set(key, new Set());
+            propertyCount.set(key, 0);
+            propertyNullable.set(key, false);
+          }
+
+          propertyCount.set(key, (propertyCount.get(key) || 0) + 1);
+
+          if (value === null || value === undefined) {
+            propertyNullable.set(key, true);
+          } else if (Array.isArray(value)) {
+            propertyTypes.get(key)!.add("array");
+
+            // Analyze array item types
+            if (!arrayItemTypes.has(key)) {
+              arrayItemTypes.set(key, new Set());
+            }
+            value.forEach((item) => {
+              if (item === null || item === undefined) {
+                arrayItemTypes.get(key)!.add("null");
+              } else {
+                arrayItemTypes.get(key)!.add(typeof item);
+              }
+            });
+          } else {
+            propertyTypes.get(key)!.add(typeof value);
+          }
+        });
+      });
+
+      // Build the schema
+      const properties: Record<string, JsonSchema> = {};
+      const required: string[] = [];
+
+      propertyTypes.forEach((types, key) => {
+        const typeArray = Array.from(types);
+        const isNullable = propertyNullable.get(key) || false;
+        const appearsInAllObjects = propertyCount.get(key) === inputs.length;
+
+        if (appearsInAllObjects && !isNullable) {
+          required.push(key);
+        }
+
+        let propertySchema: JsonSchema;
+
+        if (typeArray.length === 1 && typeArray[0] === "array") {
+          // Handle array type
+          const itemTypes = arrayItemTypes.get(key);
+          if (itemTypes && itemTypes.size > 0) {
+            const itemTypeArray = Array.from(itemTypes).filter(
+              (t) => t !== "null"
+            );
+            propertySchema = {
+              type: "array",
+              items:
+                itemTypeArray.length === 1
+                  ? { type: itemTypeArray[0] }
+                  : { type: itemTypeArray },
+            };
+          } else {
+            propertySchema = { type: "array" };
+          }
+        } else if (typeArray.length === 1) {
+          // Single type
+          propertySchema = { type: typeArray[0] };
+        } else if (typeArray.length > 1) {
+          // Multiple types - use union
+          propertySchema = { type: typeArray };
+        } else {
+          // Fallback
+          propertySchema = { type: "string" };
+        }
+
+        if (isNullable) {
+          propertySchema.nullable = true;
+        }
+
+        properties[key] = propertySchema;
+      });
+
+      return {
+        type: "object",
+        properties,
+        additionalProperties: false,
+        required: required.length > 0 ? required : undefined,
+      };
+    };
+
+    const input_schema = {
+      type: "json",
+      json_schema: getJsonSchemaFromObjectArray(inputs),
+    };
     // Prepare task specification with error handling - use the new output format
-    let taskSpec: any = {};
+    let taskSpec: any = { input_schema };
     let schemaGenerationWarnings: string[] = [];
 
     if (body.output_type === "json") {
@@ -462,7 +620,7 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
                     type: "json",
                     json_schema: suggestion.input_schema,
                   }
-                : undefined,
+                : input_schema,
               output_schema: {
                 type: "json",
                 json_schema: suggestion.output_schema,
@@ -494,6 +652,7 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
       };
     }
 
+    const source_policy = body.source_policy;
     // Suggest processor if not provided with error handling
     let processor = body.processor;
     let processorWarnings: string[] = [];
@@ -583,7 +742,7 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
       processor: processor as string,
       metadata: { input_index: index.toString() },
       // TODO: Add source_policy and mcp_servers when needed
-      // source_policy,
+      source_policy,
       // mcp_servers,
     }));
 

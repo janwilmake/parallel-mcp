@@ -1,3 +1,11 @@
+# Tomorrow
+
+- ✅ add json `input_schema` for inputs on the fly
+- ✅ added source policy
+- add neon db for events, then ask khushi to add it into hex.tech
+- try option1+option2 so we may have better stream support (target deep research first)
+  - try option 1 first
+
 # Failure modes
 
 - People may have many other tools enabled (e.g. if they have a `fetch` tool, the LLM may try to use it with the URL, which won't work)
@@ -6,21 +14,19 @@
 
 How to test the MCP properly? This is HARD.
 
-# Pending to be fixed (Manvesh)
-
-- input shows in several columns (now shows 1 column if input is structured data)
-- deep research platform url works
-- ✅ cursor deeplink works for installation
-- footnotes are in markdown syntax ([^N])
-
 # Reasoning traces
 
 🤔 The team wants to see reasoning traces while the task is being executed. This would mean blocking the thing to continue and showing updates, or, if async tool-calls are possible, sending status updates to the client to show latest reasoning.
 
-- Option 1: Long running MCP with streaming notifications (may not work >30s in most clients, may work well in some coding clients)
-- Option 2: Wait for async MCP (https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1391)
-- Option 3: Creating a streaming Chat Completions endpoint from it, so it can be added to different clients, and returns reasoning traces.
-- Option 4: Explore using MCP UI so we actually can have the full-fledged platform interface, but control stuff with MCP
+- ➡️ Option 1: Long running MCP with streaming notifications (may not work >30s in most clients, may work well in some coding clients)
+- ➡️ Option 2: Creating a streaming Chat Completions endpoint from it, so it can be added to different clients, and returns reasoning traces.
+- ⏳ Option 3: Wait for async MCP (https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1391)
+- ⏳ Option 4: Explore using MCP UI so we actually can have the full-fledged platform interface, but control stuff with MCP
+
+The only way to stream in results, as of now is via a "status notification". But for this we need a stateful architecture so it's a bit more complicated to add this in now. However I made a Sleep MCP and Chat Completions MCP before intended to test this functionality. I can do some testing with this tomorrow :+1: If it works (and shows nicely) in major clients I suppose we can refactor to make it stateful and send status notifications.
+
+- https://github.com/janwilmake/parallel-mcp/tree/main/sleep-mcp
+- https://github.com/janwilmake/chat-completions-mcp
 
 Best course of action now: start with AISDK `@parallel-web/ai-sdk` with:
 
@@ -29,6 +35,13 @@ Best course of action now: start with AISDK `@parallel-web/ai-sdk` with:
 - task to `/chat/completions` stream proxy and use that for `generateText`, `generateObject`, `streamText`, `streamObject`
 
 The chat completions endpoint is then also able to be used as MCP (use notifications as in https://github.com/janwilmake/chat-completions-mcp)
+
+# Pending to be fixed (Manvesh)
+
+- ✅ cursor deeplink works for installation
+- footnotes are in markdown syntax ([^N])
+- get new deep research platform url that renders the text output using footnotes and basis
+- glitches (send over dm)
 
 # Testing & Demos
 
@@ -40,7 +53,7 @@ Think about:
 - which data source / data destination
 - authentic use cases
 
-- VScode demo: new!
+- **VScode Demo**: new!
 
 - **ChatGPT Demo**: User uploads CSV and says what we need to add, and instructions on repeating with first 5 until quality is good. Task Group API is used repeatedly. Finally, perform batch API on all rows. Download final CSV.
 
@@ -57,6 +70,8 @@ Think about:
 - Make agent-friendly forward thinking assessment score for any company. KYB: derisk the future!
 
 # Directories
+
+https://x.com/austinbuilds/status/1970596758599409834
 
 Registry registry:
 

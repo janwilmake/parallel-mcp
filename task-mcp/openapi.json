@@ -57,6 +57,30 @@
                     "enum": ["pro", "ultra", "ultra2x", "ultra4x", "ultra8x"],
                     "default": "pro",
                     "description": "Processor selection for Deep Research capability. Defaults to 'pro' if not specified.\n\n**Deep Research Processors:**\n- **pro** ($0.10/task): Exploratory web research with citations, 3-9min latency\n- **ultra** ($0.30/task): Advanced multi-source deep research, 5-25min latency\n- **ultra2x** ($0.60/task): Difficult deep research, 5-25min latency\n- **ultra4x** ($1.20/task): Very difficult deep research, 8-30min latency\n- **ultra8x** ($2.40/task): Most difficult deep research, 8-30min latency\n\n**Note:** Only 'pro' and 'ultra' family processors support Deep Research capabilities.\n\n📖 **Documentation:** https://docs.parallel.ai/task-api/core-concepts/choose-a-processor"
+                  },
+                  "source_policy": {
+                    "type": "object",
+                    "nullable": true,
+                    "description": "Optional source policy governing preferred and disallowed domains in web search results. Source policy for web search results.\n\nThis policy governs which sources are allowed/disallowed in results. Only use when explicitly requested by user!",
+                    "properties": {
+                      "include_domains": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "List of domains to restrict the results to. If specified, only sources from these domains will be included.",
+                        "examples": ["wikipedia.org", "usa.gov"]
+                      },
+                      "exclude_domains": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "List of domains to exclude from results. If specified, sources from these domains will be excluded.",
+                        "examples": ["reddit.com", "x.com"]
+                      }
+                    },
+                    "additionalProperties": false
                   }
                 }
               }
@@ -151,10 +175,11 @@
         }
       }
     },
+
     "/v1beta/tasks/groups": {
       "post": {
         "summary": "Create Batch Task Group",
-        "description": "Creates a new task group for batch processing. Responds with a URL in format https://platform.parallel.ai/view/task-run-group/{taskGroupId} that can immediately be shared with the user for viewing, results will be streamed in here. NB: the url cannot be fetched or curl'ed as it's behind auth. \n\nAfter the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getResultMarkdown` tool.",
+        "description": "Creates a new task group for batch processing. Responds with a URL that can immediately be shared with the user for viewing, results will be streamed in here. NB: the url cannot be fetched or curl'ed as it's behind auth. \n\nAfter the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getResultMarkdown` tool.",
         "operationId": "createTaskGroup",
         "requestBody": {
           "required": true,
@@ -192,6 +217,30 @@
                       "ultra8x"
                     ],
                     "description": "Optional processor selection that determines speed, cost, and capability. If not specified, will be auto-suggested based on task complexity.\n\n**Processor Options:**\n- **lite** ($0.005/input): Basic metadata extraction, 5s-60s latency, ~2 fields\n- **base** ($0.01/input): Standard enrichments, 15s-100s latency, ~5 fields\n- **core** ($0.025/input): Cross-referenced complex outputs, 1-5min latency, ~10 fields\n- **pro** ($0.10/input): Exploratory web research with citations, 3-9min latency, ~20 fields\n- **ultra** ($0.30/input): Advanced multi-source deep research, 5-25min latency, ~20 fields\n- **ultra2x** ($0.60/input): Difficult deep research, 5-25min latency, ~25 fields\n- **ultra4x** ($1.20/input): Very difficult deep research, 8-30min latency, ~25 fields\n- **ultra8x** ($2.40/input): Most difficult deep research, 8-30min latency, ~25 fields\n\n**Key Features by Tier:**\n- lite/base: Basic citations and reasoning\n- core+: Full citations, reasoning, confidence scores, and excerpts\n- pro+: Enables Deep Research capabilities for comprehensive analysis\n\n**Selection Guide:** Use lite/base for simple data extraction, core for reliable structured outputs, pro+ when reasoning depth and comprehensive research are critical.\n\n📖 **Documentation:** https://docs.parallel.ai/task-api/core-concepts/choose-a-processor"
+                  },
+                  "source_policy": {
+                    "type": "object",
+                    "nullable": true,
+                    "description": "Optional source policy governing preferred and disallowed domains in web search results. Source policy for web search results.\n\nThis policy governs which sources are allowed/disallowed in results. Only use when explicitly requested by user!",
+                    "properties": {
+                      "include_domains": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "List of domains to restrict the results to. If specified, only sources from these domains will be included.",
+                        "examples": ["wikipedia.org", "usa.gov"]
+                      },
+                      "exclude_domains": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "List of domains to exclude from results. If specified, sources from these domains will be excluded.",
+                        "examples": ["reddit.com", "x.com"]
+                      }
+                    },
+                    "additionalProperties": false
                   }
                 }
               }
@@ -205,8 +254,7 @@
               "text/plain": {
                 "schema": {
                   "type": "string",
-                  "description": "URL at which the task group can be viewed",
-                  "example": "https://platform.parallel.ai/view/task-run-group/tgrp_abc123"
+                  "description": "URL at which the task group can be viewed"
                 }
               }
             }

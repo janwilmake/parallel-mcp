@@ -3,6 +3,7 @@
     "@cloudflare/workers-types": "^4.20250911.0"
   },
   "dependencies": {
+    "@neondatabase/serverless": "1.0.2",
     "parallel-web": "0.1.1",
     "simplerauth-client": "0.0.19",
     "with-mcp": "0.0.18"
