@@ -1,5 +1,7 @@
 # Sleep MCP Server
 
+[Thread](https://x.com/janwilmake/status/1973409552398778786)
+
 This MCP server provides a simple `sleep` tool that demonstrates progress notifications in the Model Context Protocol.
 
 See the screenshots for evidence that it works (or doesn't) in different clients:
