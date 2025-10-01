@@ -27,7 +27,7 @@ async function logMcpToolCall(
   sessionId: string | null
 ) {
   try {
-    const client = new Client({ database: (env as any).DATABASE_URL });
+    const client = new Client({ connectionString: (env as any).DATABASE_URL });
     await client.connect();
 
     await client.query(
@@ -43,7 +43,7 @@ async function logMcpToolCall(
 
     await client.end();
   } catch (error) {
-    console.error("Failed to log MCP tool call:", error);
+    console.error("Failed to log MCP tool call:", error?.message);
   }
 }
 
@@ -106,95 +106,136 @@ export default {
 
 // Add this function to the worker.ts file
 async function handleDeepResearch(request: Request): Promise<Response> {
+  const sessionId = request.headers.get("mcp-session-id");
   const apiKey = getApiKeyFromRequest(request);
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({
+  let body: { input: string; processor?: string; source_policy?: SourcePolicy };
+  let isSuccessful = false;
+  let output: any = {};
+
+  try {
+    if (!apiKey) {
+      output = {
         error: "Authentication required",
         detail:
           "Missing x-api-key or Authorization header. Please provide a valid API key.",
         status: 401,
-      }),
-      {
+      };
+
+      await logMcpToolCall(
+        "createDeepResearch",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(JSON.stringify(output), {
         status: 401,
         headers: { "content-type": "application/json" },
-      }
-    );
-  }
+      });
+    }
 
-  let body: { input: string; processor?: string; source_policy?: SourcePolicy };
-  try {
-    body = await request.json();
-  } catch (error) {
-    return new Response(
-      JSON.stringify({
+    try {
+      body = await request.json();
+    } catch (error) {
+      output = {
         error: "Invalid JSON",
         detail: "Request body must be valid JSON",
         status: 400,
-      }),
-      {
+      };
+
+      await logMcpToolCall(
+        "createDeepResearch",
+        { body: "invalid_json" },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(JSON.stringify(output), {
         status: 400,
         headers: { "content-type": "application/json" },
-      }
-    );
-  }
+      });
+    }
 
-  // Validate required fields
-  if (!body.input) {
-    return new Response(
-      JSON.stringify({
+    // Validate required fields
+    if (!body.input) {
+      output = {
         error: "Missing required field",
         detail: "'input' is a required field",
         required_fields: ["input"],
         received_fields: Object.keys(body),
         status: 400,
-      }),
-      {
+      };
+
+      await logMcpToolCall(
+        "createDeepResearch",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(JSON.stringify(output), {
         status: 400,
         headers: { "content-type": "application/json" },
-      }
-    );
-  }
+      });
+    }
 
-  // Validate input length (15,000 character limit for optimal performance)
-  if (body.input.length > 15000) {
-    return new Response(
-      JSON.stringify({
+    // Validate input length (15,000 character limit for optimal performance)
+    if (body.input.length > 15000) {
+      output = {
         error: "Input too long",
         detail:
           "Input must be under 15,000 characters for optimal Deep Research performance",
         input_length: body.input.length,
         max_length: 15000,
         status: 400,
-      }),
-      {
+      };
+
+      await logMcpToolCall(
+        "createDeepResearch",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(JSON.stringify(output), {
         status: 400,
         headers: { "content-type": "application/json" },
-      }
-    );
-  }
+      });
+    }
 
-  // Default to 'pro' processor if not specified (minimum requirement for Deep Research)
-  let processor = body.processor || "pro";
+    // Default to 'pro' processor if not specified (minimum requirement for Deep Research)
+    let processor = body.processor || "pro";
 
-  // Validate processor is pro or ultra (required for Deep Research)
-  if (!["pro", "ultra", "ultra2x", "ultra4x", "ultra8x"].includes(processor)) {
-    return new Response(
-      JSON.stringify({
+    // Validate processor is pro or ultra (required for Deep Research)
+    if (
+      !["pro", "ultra", "ultra2x", "ultra4x", "ultra8x"].includes(processor)
+    ) {
+      output = {
         error: "Invalid processor for Deep Research",
         detail: "Deep Research requires 'pro' or 'ultra' processors",
         provided_processor: processor,
         valid_processors: ["pro", "ultra", "ultra2x", "ultra4x", "ultra8x"],
         status: 400,
-      }),
-      {
+      };
+
+      await logMcpToolCall(
+        "createDeepResearch",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(JSON.stringify(output), {
         status: 400,
         headers: { "content-type": "application/json" },
-      }
-    );
-  }
+      });
+    }
 
-  try {
     // Initialize Parallel SDK client
     const parallel = new Parallel({ apiKey });
 
@@ -208,7 +249,7 @@ async function handleDeepResearch(request: Request): Promise<Response> {
       betas: ["events-sse-2025-07-24"],
     });
 
-    const response = {
+    output = {
       run_id: taskRun.run_id,
       status: taskRun.status,
       processor: taskRun.processor,
@@ -218,23 +259,39 @@ async function handleDeepResearch(request: Request): Promise<Response> {
         "Deep Research enabled with text output format. Use the platform_url for the web interface",
     };
 
-    return new Response(JSON.stringify(response, null, 2), {
+    isSuccessful = true;
+    await logMcpToolCall(
+      "createDeepResearch",
+      { body },
+      isSuccessful,
+      output,
+      sessionId
+    );
+
+    return new Response(JSON.stringify(output, null, 2), {
       status: 202,
       headers: { "content-type": "application/json" },
     });
   } catch (error) {
     console.error("Error in handleDeepResearch:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Failed to create Deep Research task",
-        detail: error.message,
-        status: 500,
-      }),
-      {
-        status: 500,
-        headers: { "content-type": "application/json" },
-      }
+    output = {
+      error: "Failed to create Deep Research task",
+      detail: error.message,
+      status: 500,
+    };
+
+    await logMcpToolCall(
+      "createDeepResearch",
+      { body: body || {} },
+      isSuccessful,
+      output,
+      sessionId
     );
+
+    return new Response(JSON.stringify(output), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
   }
 }
 
@@ -243,37 +300,76 @@ async function handleTaskRunResults(
   runId: string,
   format: string
 ): Promise<Response> {
+  const sessionId = request.headers.get("mcp-session-id");
   const apiKey = getApiKeyFromRequest(request);
-  if (!apiKey) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `/authorize?redirect_to=${encodeURIComponent(request.url)}`,
-      },
-    });
-  }
+  let isSuccessful = false;
+  let output: any = {};
 
   try {
+    if (!apiKey) {
+      output = { error: "Authentication required", redirect: true };
+
+      await logMcpToolCall(
+        "getResultMarkdown",
+        { runId, format },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `/authorize?redirect_to=${encodeURIComponent(request.url)}`,
+        },
+      });
+    }
+
     const data = await getTaskRunData(apiKey, runId);
 
     switch (format) {
       case "md":
+        output = { format: "markdown", runId, success: true };
+        isSuccessful = true;
+        await logMcpToolCall(
+          "getResultMarkdown",
+          { runId, format },
+          isSuccessful,
+          output,
+          sessionId
+        );
+
         return new Response(formatTaskRunAsMarkdown(data), {
           headers: { "content-type": "text/markdown;charset=utf8" },
         });
 
-      // case "html":
-      //   return new Response(formatTaskRunAsHTML(data), {
-      //     headers: { "content-type": "text/html;charset=utf8" },
-      //   });
-
       default:
+        output = { format: "json", runId, success: true };
+        isSuccessful = true;
+        await logMcpToolCall(
+          "getResultMarkdown",
+          { runId, format },
+          isSuccessful,
+          output,
+          sessionId
+        );
+
         return new Response(JSON.stringify(data, null, 2), {
           headers: { "content-type": "application/json;charset=utf8" },
         });
     }
   } catch (error) {
     console.error("Error fetching task run data:", error);
+    output = { error: error.message, runId, format };
+
+    await logMcpToolCall(
+      "getResultMarkdown",
+      { runId, format },
+      isSuccessful,
+      output,
+      sessionId
+    );
+
     return new Response(`Error: ${error.message}`, { status: 500 });
   }
 }
@@ -283,100 +379,189 @@ async function handleTaskGroupResults(
   taskGroupId: string,
   format: string
 ): Promise<Response> {
+  const sessionId = request.headers.get("mcp-session-id");
   const apiKey = getApiKeyFromRequest(request);
-  if (!apiKey) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `/authorize?redirect_to=${encodeURIComponent(request.url)}`,
-      },
-    });
-  }
+  let isSuccessful = false;
+  let output: any = {};
 
   try {
+    if (!apiKey) {
+      output = { error: "Authentication required", redirect: true };
+
+      await logMcpToolCall(
+        "getResultMarkdown",
+        { taskGroupId, format },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `/authorize?redirect_to=${encodeURIComponent(request.url)}`,
+        },
+      });
+    }
+
     const url = new URL(request.url);
     const basis = url.searchParams.get("basis");
     const data = await getTaskGroupData(apiKey, taskGroupId);
 
     switch (format) {
       case "json":
+        output = { format: "json", taskGroupId, success: true };
+        isSuccessful = true;
+        await logMcpToolCall(
+          "getResultMarkdown",
+          { taskGroupId, format, basis },
+          isSuccessful,
+          output,
+          sessionId
+        );
+
         return new Response(JSON.stringify(data, null, 2), {
           headers: { "content-type": "application/json;charset=utf8" },
         });
 
       case "md":
+        output = { format: "markdown", taskGroupId, success: true };
+        isSuccessful = true;
+        await logMcpToolCall(
+          "getResultMarkdown",
+          { taskGroupId, format, basis },
+          isSuccessful,
+          output,
+          sessionId
+        );
+
         return new Response(formatAsMarkdown(data, basis), {
           headers: { "content-type": "text/markdown;charset=utf8" },
         });
 
       case "html":
+        output = { format: "html", taskGroupId, success: true };
+        isSuccessful = true;
+        await logMcpToolCall(
+          "getResultMarkdown",
+          { taskGroupId, format, basis },
+          isSuccessful,
+          output,
+          sessionId
+        );
+
         return new Response(formatAsHTML(data), {
           headers: { "content-type": "text/html;charset=utf8" },
         });
 
       default:
+        output = { format: "json", taskGroupId, success: true };
+        isSuccessful = true;
+        await logMcpToolCall(
+          "getResultMarkdown",
+          { taskGroupId, format, basis },
+          isSuccessful,
+          output,
+          sessionId
+        );
+
         return new Response(JSON.stringify(data, null, 2), {
           headers: { "content-type": "application/json;charset=utf8" },
         });
     }
   } catch (error) {
     console.error("Error fetching task group data:", error);
+    output = { error: error.message, taskGroupId, format };
+
+    await logMcpToolCall(
+      "getResultMarkdown",
+      { taskGroupId, format },
+      isSuccessful,
+      output,
+      sessionId
+    );
+
     return new Response(`Error: ${error.message}`, { status: 500 });
   }
 }
 
 async function handleCreateTaskGroup(request: Request): Promise<Response> {
+  const sessionId = request.headers.get("mcp-session-id");
   const apiKey = getApiKeyFromRequest(request);
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({
+  let body: TaskGroupInput;
+  let isSuccessful = false;
+  let output: any = {};
+
+  try {
+    if (!apiKey) {
+      output = {
         error: "Authentication required",
         detail:
           "Missing x-api-key or Authorization header. Please provide a valid API key.",
         status: 401,
-      }),
-      {
+      };
+
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(JSON.stringify(output), {
         status: 401,
         headers: { "content-type": "application/json" },
-      }
-    );
-  }
+      });
+    }
 
-  let body: TaskGroupInput;
-  try {
-    body = await request.json();
-  } catch (error) {
-    return new Response(
-      JSON.stringify({
+    try {
+      body = await request.json();
+    } catch (error) {
+      output = {
         error: "Invalid JSON",
         detail: "Request body must be valid JSON",
         status: 400,
-      }),
-      {
+      };
+
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body: "invalid_json" },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(JSON.stringify(output), {
         status: 400,
         headers: { "content-type": "application/json" },
-      }
-    );
-  }
+      });
+    }
 
-  // Validate required fields
-  if (!body.inputs || !body.output_type) {
-    return new Response(
-      JSON.stringify({
+    // Validate required fields
+    if (!body.inputs || !body.output_type) {
+      output = {
         error: "Missing required fields",
         detail: "Both 'inputs' and 'output_type' are required fields",
         required_fields: ["inputs", "output_type"],
         received_fields: Object.keys(body),
         status: 400,
-      }),
-      {
+      };
+
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
+      return new Response(JSON.stringify(output), {
         status: 400,
         headers: { "content-type": "application/json" },
-      }
-    );
-  }
+      });
+    }
 
-  try {
     // Initialize Parallel SDK client
     const parallel = new Parallel({ apiKey });
 
@@ -422,33 +607,47 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
         }
       }
     } catch (inputError) {
-      return new Response(
-        JSON.stringify({
-          error: "Invalid inputs format",
-          detail: inputError.message,
-          expected:
-            "Array of objects or JSON string containing array or URL returning JSON array",
-          status: 400,
-        }),
-        {
-          status: 400,
-          headers: { "content-type": "application/json" },
-        }
+      output = {
+        error: "Invalid inputs format",
+        detail: inputError.message,
+        expected:
+          "Array of objects or JSON string containing array or URL returning JSON array",
+        status: 400,
+      };
+
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
       );
+
+      return new Response(JSON.stringify(output), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
     }
 
     if (inputs.length === 0) {
-      return new Response(
-        JSON.stringify({
-          error: "Empty inputs",
-          detail: "At least one input is required",
-          status: 400,
-        }),
-        {
-          status: 400,
-          headers: { "content-type": "application/json" },
-        }
+      output = {
+        error: "Empty inputs",
+        detail: "At least one input is required",
+        status: 400,
+      };
+
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
       );
+
+      return new Response(JSON.stringify(output), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
     }
 
     interface JsonSchema {
@@ -721,17 +920,24 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
         },
       });
     } catch (createError) {
-      return new Response(
-        JSON.stringify({
-          error: "Failed to create task group",
-          detail: createError.message,
-          status: 500,
-        }),
-        {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        }
+      output = {
+        error: "Failed to create task group",
+        detail: createError.message,
+        status: 500,
+      };
+
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
       );
+
+      return new Response(JSON.stringify(output), {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      });
     }
 
     const taskGroupId = taskGroup.taskgroup_id;
@@ -786,21 +992,28 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
         }
       }
     } catch (overallError) {
-      return new Response(
-        JSON.stringify({
-          error: "Failed to add runs to task group",
-          detail: overallError.message,
-          task_group_id: taskGroupId,
-          inputs_processed: totalProcessed,
-          total_inputs: inputs.length,
-          batch_results: batchResults,
-          status: 500,
-        }),
-        {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        }
+      output = {
+        error: "Failed to add runs to task group",
+        detail: overallError.message,
+        task_group_id: taskGroupId,
+        inputs_processed: totalProcessed,
+        total_inputs: inputs.length,
+        batch_results: batchResults,
+        status: 500,
+      };
+
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
       );
+
+      return new Response(JSON.stringify(output), {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      });
     }
 
     const task_group_url = `https://platform.parallel.ai/view/task-run-group/${taskGroupId}`;
@@ -824,37 +1037,63 @@ async function handleCreateTaskGroup(request: Request): Promise<Response> {
 
     // Return detailed response based on success/failure
     if (batchResults.every((b) => b.success)) {
+      isSuccessful = true;
+      output = task_group_url;
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
+      );
+
       return new Response(task_group_url, {
         status: 200,
         headers: { "content-type": "application/json" },
       });
     } else {
-      return new Response(
-        JSON.stringify({
-          ...successResponse,
-          error: "Some batches failed",
-          status: 207, // Multi-status
-        }),
-        {
-          status: 207,
-          headers: { "content-type": "application/json" },
-        }
+      // Partial success - log as successful but with warnings
+      isSuccessful = true;
+      output = {
+        ...successResponse,
+        error: "Some batches failed",
+        status: 207, // Multi-status
+      };
+
+      await logMcpToolCall(
+        "createTaskGroup",
+        { body },
+        isSuccessful,
+        output,
+        sessionId
       );
+
+      return new Response(JSON.stringify(output), {
+        status: 207,
+        headers: { "content-type": "application/json" },
+      });
     }
   } catch (error) {
-    console.error("Error in handleMultitask:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        detail: error.message,
-        stack: error.stack,
-        status: 500,
-      }),
-      {
-        status: 500,
-        headers: { "content-type": "application/json" },
-      }
+    console.error("Error in handleCreateTaskGroup:", error);
+    output = {
+      error: "Internal server error",
+      detail: error.message,
+      stack: error.stack,
+      status: 500,
+    };
+
+    await logMcpToolCall(
+      "createTaskGroup",
+      { body: body || {} },
+      isSuccessful,
+      output,
+      sessionId
     );
+
+    return new Response(JSON.stringify(output), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
   }
 }
 

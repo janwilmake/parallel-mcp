@@ -2,7 +2,7 @@
 
 - ✅ add json `input_schema` for inputs on the fly
 - ✅ added source policy
-- add neon db for events, then ask khushi to add it into hex.tech
+- ✅ add neon db for events
 - try option1+option2 so we may have better stream support (target deep research first)
   - try option 1 first
 
