@@ -1,10 +1,45 @@
 # Tomorrow
 
+- claude code can't use spaces for mcp name. use hyphen
 - ✅ add json `input_schema` for inputs on the fly
 - ✅ added source policy
 - ✅ add neon db for events
-- try option1+option2 so we may have better stream support (target deep research first)
-  - try option 1 first
+- ✅ try sleeping mcp server
+
+# Thursday
+
+🟠 Try creating streaming chat completion from the streaming task endpoint
+
+🪲 Tool execution failed (happens sometimes in Claude, unclear why)
+
+🪲 When trying "json" with a string for output it may fail too
+
+🪲 I dont think suggest is working properly @Jan Wilmake because for relatively simple tasks it is picking the pro processor
+
+🤔 People expect a notification when it’s done. When it’s finished we wanna send a notification. Maybe email at the end? But we don’t have the chat link and we don’t have the email so that’s though!
+
+Potential improvements:
+
+- ✅ We can instruct the LLM it that needs to instruct the user to check back himself AND show a markdown BUTTON (not just link), and also ensure it never says things like "ill check later wehen its done" because it can't actually do that.
+- ✅ Instruct LLM to format the `getResults` tool better (prompt LLM to do a table).
+- ✅ We can improve the instructions for choosing the right processor.
+- ✅ We can instruct not to use the `deepResearch` tool for small tasks (lite, core, base) OR we can add the ability to have these processors too (and calling it `singleTask` instead).
+
+Put docs back into `remote-mcp.mdx`
+
+AI SDK: MVP with tools + taskchat
+
+Work on separate docs/blogpost for Task MCP with usage examples.
+
+uithub Post: link it to agent-friendly!
+
+# Blockers (next meeting)
+
+- Sync on AISDK/Cloudflare/task-completions
+- Make repos for MCP? why can't I make repos myself?
+- Claude get shared examples: get parallel account?
+- Hacker Residence: Should I go? And SF?
+- Feedback
 
 # Failure modes
 

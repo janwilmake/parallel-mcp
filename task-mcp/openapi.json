@@ -10,8 +10,8 @@
       ],
       "authEndpoint": "/me"
     },
-    "title": "Parallel.ai Multitask API",
-    "description": "Perform Deep Research or Create Task Groups using Parallel.ai. \n\n- For doing a single deep research where detailed unstructured output is preferred, use 'createDeepResearch'.\n- When tabular data is preferred with more structured data enrichment, a task group (createTaskGroup + getResultMarkdown) is more useful.",
+    "title": "Parallel Task MCP",
+    "description": "Perform Deep Research or Create Task Groups using Parallel.ai. \n\n- For doing a single deep research where detailed unstructured output is preferred, use 'createDeepResearch'.\n- When tabular data is preferred with more structured data enrichment, a task group (createTaskGroup + getResultMarkdown) is more useful.\n- For smaller queries, please instruct the user to use the Parallel Search MCP instead.\n\nNB: the above tools are async and the user is responsible for checking back later asking for progress/results. You (assistant) cannot automatically notify the user, or check results when it's done. Be sure to make this clear!",
     "version": "1.0.0",
     "contact": {
       "name": "Parallel.ai",
@@ -36,7 +36,7 @@
     "/v1beta/tasks/deep-research": {
       "post": {
         "summary": "Create Deep Research Task",
-        "description": "Creates a comprehensive Deep Research task that transforms natural language research queries into analyst-grade intelligence reports. Automatically enables text output format and events streaming for real-time progress updates.\n\n**Key Features:**\n- Multi-step web exploration and targeted information retrieval\n- Sophisticated synthesis with inline citations and verification\n- Markdown report format with structured intelligence\n- Real-time progress updates via Server-Sent Events\n- Estimated duration: 5-25 minutes (up to 45 minutes for complex research)\n\n**Requirements:**\n- Input must be under 15,000 characters for optimal performance\n- Requires 'pro' or 'ultra' processors (defaults to 'pro')\n- Automatically configures text schema and enables events streaming\n\n📖 **Documentation:** https://docs.parallel.ai/task-api/features/task-deep-research",
+        "description": "Creates a comprehensive Deep Research task that transforms natural language research queries into analyst-grade intelligence reports.\n\n**Key Features:**\n- Multi-step web exploration and targeted information retrieval\n- Sophisticated synthesis with inline citations and verification\n- Markdown report format with structured intelligence\n- Real-time progress updates via Server-Sent Events\n- Estimated duration: 5-25 minutes (up to 45 minutes for complex research)\n\n**Requirements:**\n- Input must be under 15,000 characters for optimal performance\n- Requires 'pro' or 'ultra' processors (defaults to 'pro')\n\n📖 **Documentation:** https://docs.parallel.ai/task-api/features/task-deep-research\n\nPlease do not use this for ligther search tasks, refer to use Parallel Search MCP for lighter work! When initiated, show the user a markdown link leading to the preview, and instruct the user to ask to analyze results after it's done (you, the assistant, cannot check for the user or send a notification).",
         "operationId": "createDeepResearch",
         "requestBody": {
           "required": true,
@@ -179,7 +179,7 @@
     "/v1beta/tasks/groups": {
       "post": {
         "summary": "Create Batch Task Group",
-        "description": "Creates a new task group for batch processing. Responds with a URL that can immediately be shared with the user for viewing, results will be streamed in here. NB: the url cannot be fetched or curl'ed as it's behind auth. \n\nAfter the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getResultMarkdown` tool.",
+        "description": "Creates a new task group for batch processing. Responds with a URL that can immediately be shared with the user for viewing (show this as a markdown link). NB: the url cannot be fetched or curl'ed as it's behind auth. \n\nAfter the tasks are done, the task-group ID can be used to retrieve a machine-readable overview of the results using the `getResultMarkdown` tool. Instruct the user to ask for this, the user will NOT be notified.",
         "operationId": "createTaskGroup",
         "requestBody": {
           "required": true,
@@ -301,7 +301,7 @@
     "/{taskRunOrGroupId}": {
       "get": {
         "summary": "Get Task Run or Task Group Results",
-        "description": "Retrieves task run or task group results in various formats",
+        "description": "Retrieves task run or task group progress and results in various formats.",
         "operationId": "getTaskRunOrGroupResults",
         "parameters": [
           {
@@ -362,7 +362,7 @@
       "get": {
         "summary": "Get Task Run or Task Group Results as Markdown",
         "operationId": "getResultMarkdown",
-        "description": "Get Task Run or Task Group Results as Markdown with optional basis information (for task groups)",
+        "description": "Get Task Run or Task Group progress and results as Markdown with optional basis information (for task groups).\n\nWhen using this tool, always present the status as a markdown table, use tables other markdown features to more nicely show your answer to the user prompt.",
         "parameters": [
           {
             "name": "taskRunOrGroupId",
@@ -381,7 +381,7 @@
               "type": "string",
               "pattern": "^(all|index:[0-9]+|field:[a-zA-Z_][a-zA-Z0-9_]*)$"
             },
-            "description": "Optional: Include basis information for task groups - 'all' for all results, 'index:{number}' for specific index, or 'field:{fieldname}' for specific field\n\nNB: Only use this when needed as it consumes a lot of tokens. Only applicable for task groups (tgrp_*).",
+            "description": "Optional: Include basis information for task groups - 'all' for all results, 'index:{number}' for specific index, or 'field:{fieldname}' for specific field\n\nNB: Only applicable for task groups (tgrp_*). Prefer to use an index or field, not 'all', unless explicitly requested by the user.",
             "examples": {
               "all": {
                 "value": "all",

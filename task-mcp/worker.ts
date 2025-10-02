@@ -256,7 +256,7 @@ async function handleDeepResearch(request: Request): Promise<Response> {
       created_at: taskRun.created_at,
       platform_url: `https://platform.parallel.ai/view/task-run/${taskRun.run_id}`,
       message:
-        "Deep Research enabled with text output format. Use the platform_url for the web interface",
+        "Deep Research enabled with text output format. The user can immediately visit the platform_url to view the results stream in.",
     };
 
     isSuccessful = true;
