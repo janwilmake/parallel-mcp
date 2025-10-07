@@ -6,28 +6,9 @@ Make ChatGPT MCP integration work! --> Perfect timing!
 
 Test it out: Research on using Parallel and X posts context for enriching a person. **Entity Resolution**
 
-❌ NOT ATM: Large files — Ultimate: CSV to CSV over 1 chat completion
-
 ⏳ GET IN THERE Grammarly Slack, Cloudflare Slack, AISDK Slack, etc.
 
-# Creating an overview of other MCP-related opportunities
-
-- Pitch other MCP-related ideas.
-  - MCP to test using Parallel APIs and write code ("Task playground MCP")
-  - Claude.ai in browser
-  - ChatGPT connectors
-  - Rube.app
-  - MCP IDP for Task proxy (and playground)
-- Tackle MCP problems: https://x.com/janwilmake/status/1965135300184998109
-
-# Recipes in progress
-
-Tina ideas: I think we should do these roughly in the order listed:
-
-- (1) sales CRM
-- (2) KYB (know your business)
-- (3) example of chaining tasks
-- (4) product matching
+❌ NOT ATM: Large files — Ultimate: CSV to CSV over 1 chat completion
 
 # Reasoning traces
 
@@ -83,6 +64,21 @@ Think about:
 - Based People: task chaining: how to more effectively prototype different strategies?!
 - Get personal X network into CRM, then research them more (find other owned socials, find company, etc)
 - Make agent-friendly forward thinking assessment score for any company. KYB: derisk the future!
+
+- Pitch other MCP-related ideas.
+  - MCP to test using Parallel APIs and write code ("Task playground MCP")
+  - Claude.ai in browser
+  - ChatGPT connectors
+  - Rube.app
+  - MCP IDP for Task proxy (and playground)
+- Tackle MCP problems: https://x.com/janwilmake/status/1965135300184998109
+
+Tina ideas: I think we should do these roughly in the order listed:
+
+- (1) sales CRM
+- (2) KYB (know your business)
+- (3) example of chaining tasks
+- (4) product matching
 
 # Directories
 
