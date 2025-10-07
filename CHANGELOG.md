@@ -90,3 +90,27 @@ OAuth
 ✅ The MCP should be able to choose to do a single deep research as well. A single deep research just requires inputting
 
 ✅ Make task run status viewable in markdown using the same `getResult` tool (keeps MCP definition short)
+
+# W40 (2025-10-01)
+
+- ✅ claude code can't use spaces for mcp name. use hyphen
+- ✅ add json `input_schema` for inputs on the fly
+- ✅ added source policy
+- ✅ add neon db for events
+- ✅ try sleeping mcp server
+- 🟠 Try creating streaming chat completion from the streaming task endpoint
+- 🪲 Tool execution failed (happens sometimes in Claude, unclear why)
+- 🪲 When trying "json" with a string for output it may fail too
+- 🪲 I dont think suggest is working properly @Jan Wilmake because for relatively simple tasks it is picking the pro processor
+- 🤔 People expect a notification when it’s done. When it’s finished we wanna send a notification. Maybe email at the end? But we don’t have the chat link and we don’t have the email so that’s though!
+
+Potential improvements:
+
+- ✅ We can instruct the LLM it that needs to instruct the user to check back himself AND show a markdown BUTTON (not just link), and also ensure it never says things like "ill check later wehen its done" because it can't actually do that.
+- ✅ Instruct LLM to format the `getResults` tool better (prompt LLM to do a table).
+- ✅ We can improve the instructions for choosing the right processor.
+- ✅ We can instruct not to use the `deepResearch` tool for small tasks (lite, core, base) OR we can add the ability to have these processors too (and calling it `singleTask` instead).
+
+✅ Put docs back into `remote-mcp.mdx`
+
+✅ Work on separate docs/blogpost for Task MCP with usage examples.

@@ -1,53 +1,33 @@
-# Tomorrow
+# W42
 
-- claude code can't use spaces for mcp name. use hyphen
-- ✅ add json `input_schema` for inputs on the fly
-- ✅ added source policy
-- ✅ add neon db for events
-- ✅ try sleeping mcp server
+#1 Push out MCP: First create demand ==> Small datasets -> After that, scale it up with n8n or using APIs
 
-# Thursday
+Make ChatGPT MCP integration work! --> Perfect timing!
 
-🟠 Try creating streaming chat completion from the streaming task endpoint
+Test it out: Research on using Parallel and X posts context for enriching a person. **Entity Resolution**
 
-🪲 Tool execution failed (happens sometimes in Claude, unclear why)
+❌ NOT ATM: Large files — Ultimate: CSV to CSV over 1 chat completion
 
-🪲 When trying "json" with a string for output it may fail too
+⏳ GET IN THERE Grammarly Slack, Cloudflare Slack, AISDK Slack, etc.
 
-🪲 I dont think suggest is working properly @Jan Wilmake because for relatively simple tasks it is picking the pro processor
+# Creating an overview of other MCP-related opportunities
 
-🤔 People expect a notification when it’s done. When it’s finished we wanna send a notification. Maybe email at the end? But we don’t have the chat link and we don’t have the email so that’s though!
+- Pitch other MCP-related ideas.
+  - MCP to test using Parallel APIs and write code ("Task playground MCP")
+  - Claude.ai in browser
+  - ChatGPT connectors
+  - Rube.app
+  - MCP IDP for Task proxy (and playground)
+- Tackle MCP problems: https://x.com/janwilmake/status/1965135300184998109
 
-Potential improvements:
+# Recipes in progress
 
-- ✅ We can instruct the LLM it that needs to instruct the user to check back himself AND show a markdown BUTTON (not just link), and also ensure it never says things like "ill check later wehen its done" because it can't actually do that.
-- ✅ Instruct LLM to format the `getResults` tool better (prompt LLM to do a table).
-- ✅ We can improve the instructions for choosing the right processor.
-- ✅ We can instruct not to use the `deepResearch` tool for small tasks (lite, core, base) OR we can add the ability to have these processors too (and calling it `singleTask` instead).
+Tina ideas: I think we should do these roughly in the order listed:
 
-Put docs back into `remote-mcp.mdx`
-
-AI SDK: MVP with tools + taskchat
-
-Work on separate docs/blogpost for Task MCP with usage examples.
-
-uithub Post: link it to agent-friendly!
-
-# Blockers (next meeting)
-
-- Sync on AISDK/Cloudflare/task-completions
-- Make repos for MCP? why can't I make repos myself?
-- Claude get shared examples: get parallel account?
-- Hacker Residence: Should I go? And SF?
-- Feedback
-
-# Failure modes
-
-- People may have many other tools enabled (e.g. if they have a `fetch` tool, the LLM may try to use it with the URL, which won't work)
-- People could use this MCP with a tiny model. The tiny model won't be as good reasoning
-- People may upload unreadable files or very large input datasets. This could clutter the context window making it harder to be used.
-
-How to test the MCP properly? This is HARD.
+- (1) sales CRM
+- (2) KYB (know your business)
+- (3) example of chaining tasks
+- (4) product matching
 
 # Reasoning traces
 
@@ -74,9 +54,9 @@ The chat completions endpoint is then also able to be used as MCP (use notificat
 # Pending to be fixed (Manvesh)
 
 - ✅ cursor deeplink works for installation
-- footnotes are in markdown syntax ([^N])
-- get new deep research platform url that renders the text output using footnotes and basis
-- glitches (send over dm)
+- Footnotes are in markdown syntax ([^N])
+- Get new deep research platform url that renders the text output using footnotes and basis
+- Glitches (sent over DM)
 
 # Testing & Demos
 
@@ -122,7 +102,7 @@ Client Registries:
 
 - vscode - https://github.com/mcp (needs mcp repo to be oss)
 - cursor - https://docs.cursor.com/en/tools/mcp and https://docs.claude.com/en/docs/claude-code/mcp#popular-mcp-servers
-- claude (code) - https://docs.claude.com/en/docs/agents-and-tools/remote-mcp-servers
+- Claude (code) - https://docs.claude.com/en/docs/agents-and-tools/remote-mcp-servers
 - https://lobehub.com/mcp
 
 Registries:
