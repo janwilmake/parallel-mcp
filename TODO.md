@@ -2,11 +2,13 @@
 
 #1 Push out MCP: First create demand ==> Small datasets -> After that, scale it up with n8n or using APIs
 
-Make ChatGPT MCP integration work! --> Perfect timing!
+⏳ Make ChatGPT MCP integration work! --> Perfect timing! (wait for bugfix openai)
 
-Test it out: Research on using Parallel and X posts context for enriching a person. **Entity Resolution**
+⏳ After Task MCP / Search MCP public, list in directories
 
 ⏳ GET IN THERE Grammarly Slack, Cloudflare Slack, AISDK Slack, etc.
+
+Test it out: Research on using Parallel and X posts context for enriching a person. **Entity Resolution**. Usecase: Recruitment/headhunting.
 
 ❌ NOT ATM: Large files — Ultimate: CSV to CSV over 1 chat completion
 
@@ -65,12 +67,13 @@ Think about:
 - Get personal X network into CRM, then research them more (find other owned socials, find company, etc)
 - Make agent-friendly forward thinking assessment score for any company. KYB: derisk the future!
 
-- Pitch other MCP-related ideas.
-  - MCP to test using Parallel APIs and write code ("Task playground MCP")
-  - Claude.ai in browser
-  - ChatGPT connectors
-  - Rube.app
-  - MCP IDP for Task proxy (and playground)
+## other MCP-related ideas
+
+- MCP to test using Parallel APIs and write code ("Task playground MCP")
+- Claude.ai in browser
+- ChatGPT connectors
+- Rube.app
+- MCP IDP for Task proxy (and playground)
 - Tackle MCP problems: https://x.com/janwilmake/status/1965135300184998109
 
 Tina ideas: I think we should do these roughly in the order listed:
@@ -82,44 +85,47 @@ Tina ideas: I think we should do these roughly in the order listed:
 
 # Directories
 
-https://x.com/austinbuilds/status/1970596758599409834
+Submitted:
 
-Registry registry:
-
-https://mastra.ai/mcp-registry-registry
-
-Client without registry:
-
-- https://ampcode.com/manual and https://sourcegraph.com
-- 🔥 https://docs.factory.ai/user-guides/factory-bridge/model-context-protocol
-- ❌ https://x.com/interaction/status/1966900969062773135
-
-Client Registries:
-
-- vscode - https://github.com/mcp (needs mcp repo to be oss)
-- cursor - https://docs.cursor.com/en/tools/mcp and https://docs.claude.com/en/docs/claude-code/mcp#popular-mcp-servers
-- Claude (code) - https://docs.claude.com/en/docs/agents-and-tools/remote-mcp-servers
-- https://lobehub.com/mcp
-
-Registries:
-
+- MCP - https://modelcontextprotocol.io/examples
+  - Edit: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/examples.mdx
+  - ❌ doesnt seem to be getting any PRs
+- MCP - https://github.com/modelcontextprotocol/servers
+  - ⏳ https://github.com/modelcontextprotocol/servers/pull/2829
+- Cursor - https://docs.cursor.com/en/tools/mcp
+  - ⏳ https://github.com/cursor/mcp-servers/issues/48
+- https://lobehub.com/mcp (✅ submitted task+search)
 - https://mcp.composio.dev and https://rube.app
-- mcp - https://modelcontextprotocol.io/examples and https://github.com/modelcontextprotocol/servers
+  - Need to change from https://rube.app/team/parallel to https://docs.parallel.ai/integrations/mcp/installation
+  - ⏳ Asked Composio team in slack.
 - https://mcpservers.org
+  - ✅ submitted Task MCP, paid for 'official' badge
 - https://mcp.so
-- https://github.com/punkpeye/awesome-mcp-servers
-- https://mcpmarket.com
+  - ✅ submitted both
+  - ⏳ status at: https://mcp.so/my-servers
+
+Needs contact person:
+
+- VSCode - https://github.com/mcp ❌ no way to make PR
+- Claude https://docs.claude.com/en/docs/claude-code/mcp#popular-mcp-servers ❌ no way to make pr
+- Claude (code) - https://docs.claude.com/en/docs/agents-and-tools/remote-mcp-servers ❌ no way to make pr
+
+To do:
+
+- Official MCP registry
+  - follow: https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md
 - https://www.pulsemcp.com/servers
+- https://github.com/punkpeye/awesome-mcp-servers
 - https://github.com/jaw9c/awesome-remote-mcp-servers
+- https://mcpmarket.com
 - https://cline.bot/mcp-marketplace
 - https://block.github.io/goose/docs/category/mcp-servers/
 - https://glama.ai/mcp/servers
 - https://zed.dev/extensions?filter=context-servers
 - https://smithery.ai
 - https://klavis.ai
-
-Not sure:
-
-https://opencode.ai ()
-
-Create task group using MCP to enhance this list into actionable items on how actually get listed.
+- https://mastra.ai/mcp-registry-registry
+- https://ampcode.com/manual and https://sourcegraph.com
+- 🔥 https://docs.factory.ai/user-guides/factory-bridge/model-context-protocol
+- ❌ https://x.com/interaction/status/1966900969062773135
+- https://opencode.ai
