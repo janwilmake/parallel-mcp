@@ -4,16 +4,18 @@
 
 Fetch from a flat version of context sourced at https://github.com/parallel-web/parallel-cookbook
 
-# TODO Tasks MCP
+# TODO Task MCP
 
 - Add `core2x`
 - Fix response to include processor (for when ingest was used)
+- Merge staging to main and deploy. Confirm it works as intended still - https://github.com/parallel-web/task-mcp-impl/pull/1
 - Docs to explain how to use the MCP with MCP-UI clients
-- Merge staging to main https://github.com/parallel-web/task-mcp-impl/pull/1
-- Dogfood more
-- Put examples in thread https://wilmake.slack.com/archives/C09807JBB26/p1760031061625639
 
 # Examples
+
+Dogfood More
+
+<!-- Put examples in thread https://wilmake.slack.com/archives/C09807JBB26/p1760031061625639 -->
 
 - **Enrich datapoint for high number of items** - use Parallel Search to find all MCP directories. Then determine an SEO strategy for each via a task. Output is a small actionable list of tasks.
 - **Person Enrichment** - First, get the people that I follow on X into a CRM. Ask to enrich my people with social media based on logical proof, put back a summary into CRM.
@@ -23,12 +25,13 @@ Fetch from a flat version of context sourced at https://github.com/parallel-web/
 - KYB (know your business) deep research (over MCP?) - Make agent-friendly forward thinking assessment score for any company. KYB: derisk the future!
 - Example of chaining tasks
 - Product matching / Price comparison
-- Recruitment/headhunting: Fill one Parallel role using my network (Blog Idea)
 - **Based People**: task chaining: how to more effectively prototype different strategies?!
+
+**Recruitment/headhunting**: Fill one Parallel role using my network (Blog Idea)
 
 1. Who do I know that could fill this role: {role info} —> X Interactions MCP
 2. Find 20 candidates, do background check on each using entity resolution and then a follow up research on verified highly confident sources
-3. Finally, make a verdict on the best 3 candidates to approach and why.
+3. Finally, make a verdict on the best 3 candidates to approach and why
 
 # Directories
 
@@ -95,7 +98,7 @@ No registries:
 - ❌ https://x.com/interaction/status/1966900969062773135
 - ❌ https://opencode.ai
 
-To Do:
+TO DO:
 
 - Official MCP registry
   - follow: https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md
