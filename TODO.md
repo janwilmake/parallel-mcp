@@ -1,87 +1,34 @@
-# W42
+<!-- Clear focus on getting MCP-UI post out there and making currently available features easier to use -->
 
-#1 Push out MCP: First create demand ==> Small datasets -> After that, scale it up with n8n or using APIs
+# Parallel Docs MCP
 
-⏳ Make ChatGPT MCP integration work! --> Perfect timing! (wait for bugfix openai)
+Fetch from a flat version of context sourced at https://github.com/parallel-web/parallel-cookbook
 
-⏳ After Task MCP / Search MCP public, list in directories
+# TODO Tasks MCP
 
-⏳ GET IN THERE Grammarly Slack, Cloudflare Slack, AISDK Slack, etc.
+- Add `core2x`
+- Fix response to include processor (for when ingest was used)
+- Docs to explain how to use the MCP with MCP-UI clients
+- Merge staging to main https://github.com/parallel-web/task-mcp-impl/pull/1
+- Dogfood more
+- Put examples in thread https://wilmake.slack.com/archives/C09807JBB26/p1760031061625639
 
-Test it out: Research on using Parallel and X posts context for enriching a person. **Entity Resolution**. Usecase: Recruitment/headhunting.
+# Examples
 
-❌ NOT ATM: Large files — Ultimate: CSV to CSV over 1 chat completion
+- **Enrich datapoint for high number of items** - use Parallel Search to find all MCP directories. Then determine an SEO strategy for each via a task. Output is a small actionable list of tasks.
+- **Person Enrichment** - First, get the people that I follow on X into a CRM. Ask to enrich my people with social media based on logical proof, put back a summary into CRM.
+  - Entity Resolution (other channels)
+  - Find complete picture of sources of a person
+  - KYC
+- KYB (know your business) deep research (over MCP?) - Make agent-friendly forward thinking assessment score for any company. KYB: derisk the future!
+- Example of chaining tasks
+- Product matching / Price comparison
+- Recruitment/headhunting: Fill one Parallel role using my network (Blog Idea)
+- **Based People**: task chaining: how to more effectively prototype different strategies?!
 
-# Reasoning traces
-
-🤔 The team wants to see reasoning traces while the task is being executed. This would mean blocking the thing to continue and showing updates, or, if async tool-calls are possible, sending status updates to the client to show latest reasoning.
-
-- ➡️ Option 1: Long running MCP with streaming notifications (may not work >30s in most clients, may work well in some coding clients)
-- ➡️ Option 2: Creating a streaming Chat Completions endpoint from it, so it can be added to different clients, and returns reasoning traces.
-- ⏳ Option 3: Wait for async MCP (https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1391)
-- ⏳ Option 4: Explore using MCP UI so we actually can have the full-fledged platform interface, but control stuff with MCP
-
-The only way to stream in results, as of now is via a "status notification". But for this we need a stateful architecture so it's a bit more complicated to add this in now. However I made a Sleep MCP and Chat Completions MCP before intended to test this functionality. I can do some testing with this tomorrow :+1: If it works (and shows nicely) in major clients I suppose we can refactor to make it stateful and send status notifications.
-
-- https://github.com/janwilmake/parallel-mcp/tree/main/sleep-mcp
-- https://github.com/janwilmake/chat-completions-mcp
-
-Best course of action now: start with AISDK `@parallel-web/ai-sdk` with:
-
-- easy to configure search as tool (ability to pre-configure with simple ways to alter how large response-context will be)
-- search chat completions as model
-- task to `/chat/completions` stream proxy and use that for `generateText`, `generateObject`, `streamText`, `streamObject`
-
-The chat completions endpoint is then also able to be used as MCP (use notifications as in https://github.com/janwilmake/chat-completions-mcp)
-
-# Pending to be fixed (Manvesh)
-
-- ✅ cursor deeplink works for installation
-- Footnotes are in markdown syntax ([^N])
-- Get new deep research platform url that renders the text output using footnotes and basis
-- Glitches (sent over DM)
-
-# Testing & Demos
-
-Goal: getting hands dirty, lots of experimentation. Test more, uncover failure modes, fix these.
-
-Think about:
-
-- which MCP client
-- which data source / data destination
-- authentic use cases
-
-- **VScode Demo**: new!
-
-- **ChatGPT Demo**: User uploads CSV and says what we need to add, and instructions on repeating with first 5 until quality is good. Task Group API is used repeatedly. Finally, perform batch API on all rows. Download final CSV.
-
-- **Subagent (Claude Code or Cursor)** - Put this MCP in a subagent template. The process is always to use search first to make a list, then do a Parallel Task, then use the Alarm MCP (or just `sleep 900`), and get back with final results https://docs.claude.com/en/docs/claude-code/sub-agents#available-tools. This can be added as description to the agent context. The input can come from a JSON file, the outputs can be written to a JSON files as well. Ideally we perform an experiment of choosing processors here: it can be an example of an experiemnt where we compare chaining tasks with doing one bigger task.
-
-- **CRM (Attio) input**. First, get the people that I follow on X into a CRM. Ask to enrich my people with social media based on logical proof, put back a summary into CRM.
-
-- **Claude Demo**: use Parallel Search to find all MCP directories. Then determine an SEO strategy for each via a task. Output is a small actionable list of tasks.
-
-**Authentic Use cases:**
-
-- Based People: task chaining: how to more effectively prototype different strategies?!
-- Get personal X network into CRM, then research them more (find other owned socials, find company, etc)
-- Make agent-friendly forward thinking assessment score for any company. KYB: derisk the future!
-
-## other MCP-related ideas
-
-- MCP to test using Parallel APIs and write code ("Task playground MCP")
-- Claude.ai in browser
-- ChatGPT connectors
-- Rube.app
-- MCP IDP for Task proxy (and playground)
-- Tackle MCP problems: https://x.com/janwilmake/status/1965135300184998109
-
-Tina ideas: I think we should do these roughly in the order listed:
-
-- (1) sales CRM
-- (2) KYB (know your business)
-- (3) example of chaining tasks
-- (4) product matching
+1. Who do I know that could fill this role: {role info} —> X Interactions MCP
+2. Find 20 candidates, do background check on each using entity resolution and then a follow up research on verified highly confident sources
+3. Finally, make a verdict on the best 3 candidates to approach and why.
 
 # Directories
 
@@ -100,9 +47,26 @@ Submitted:
   - ⏳ Asked Composio team in slack.
 - https://mcpservers.org
   - ✅ submitted Task MCP, paid for 'official' badge
+  - https://mcpservers.org/servers/docs-parallel-ai-integrations-mcp-installation
 - https://mcp.so
   - ✅ submitted both
   - ⏳ status at: https://mcp.so/my-servers
+- ✅ https://github.com/jaw9c/awesome-remote-mcp-servers (merged ✅)
+- Claude Connectors - https://support.claude.com/en/articles/11596036-anthropic-connectors-directory-faq https://docs.google.com/forms/d/e/1FAIpQLSeafJF2NDI7oYx1r8o0ycivCSVLNq92Mpc1FPxMKSw1CzDkqA/viewform
+  - ⏳ submitted for `Parallel Tasks`
+- https://smithery.ai
+  - ✅ https://smithery.ai/server/@parallel/tasks
+  - ✅ https://smithery.ai/server/@parallel/search
+  - ✅ verified
+- https://github.com/punkpeye/awesome-mcp-servers
+  - ⏳ PR open https://github.com/punkpeye/awesome-mcp-servers/pull/1406
+- https://www.pulsemcp.com/servers
+  - ⏳ submitted both
+- https://mcpmarket.com
+  - ⏳ submitted both
+- https://cline.bot/mcp-marketplace
+  - task mcp https://github.com/cline/mcp-marketplace/issues/509
+  - search mcp https://github.com/cline/mcp-marketplace/issues/510
 
 Needs contact person:
 
@@ -110,22 +74,29 @@ Needs contact person:
 - Claude https://docs.claude.com/en/docs/claude-code/mcp#popular-mcp-servers ❌ no way to make pr
 - Claude (code) - https://docs.claude.com/en/docs/agents-and-tools/remote-mcp-servers ❌ no way to make pr
 
-To do:
+Requires custom code:
+
+- https://glama.ai/mcp/servers
+  - ❌ tried but too much work https://glama.ai/mcp/servers/@janwilmake/task-mcp/score
+- https://klavis.ai
+  - ❌ https://github.com/Klavis-AI/klavis/tree/main/mcp_servers (seems all python, can't find instructions)
+- Zed (https://zed.dev/docs/extensions/mcp-extensions https://zed.dev/extensions?filter=context-servers)
+  - requires custom code
+
+Needs registry:
+
+https://mastra.ai/mcp-registry-registry
+
+No registries:
+
+- ❌ https://ampcode.com/manual and https://sourcegraph.com
+- ❌ https://docs.factory.ai/user-guides/factory-bridge/model-context-protocol
+- ❌ https://block.github.io/goose/docs/category/mcp-servers/
+- ❌ https://x.com/interaction/status/1966900969062773135
+- ❌ https://opencode.ai
+
+To Do:
 
 - Official MCP registry
   - follow: https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md
-- https://www.pulsemcp.com/servers
-- https://github.com/punkpeye/awesome-mcp-servers
-- https://github.com/jaw9c/awesome-remote-mcp-servers
-- https://mcpmarket.com
-- https://cline.bot/mcp-marketplace
-- https://block.github.io/goose/docs/category/mcp-servers/
-- https://glama.ai/mcp/servers
-- https://zed.dev/extensions?filter=context-servers
-- https://smithery.ai
-- https://klavis.ai
-- https://mastra.ai/mcp-registry-registry
-- https://ampcode.com/manual and https://sourcegraph.com
-- 🔥 https://docs.factory.ai/user-guides/factory-bridge/model-context-protocol
-- ❌ https://x.com/interaction/status/1966900969062773135
-- https://opencode.ai
+- https://x.com/claudeai/status/1976332881409737124?s=46&t=73OLKnbYZgmY6PGvTUK_zg
