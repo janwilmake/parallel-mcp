@@ -8,11 +8,9 @@ Ultimate: Large 1MB CSV to CSV over 1 chat completion. Get this to work, then us
 
 # Web Search MCP accesibility
 
-Add the processor to the output to make it clearer for the LLM
+Router that uses a regular model by default but uses websearch or Task MCP if a 1 token prompt jumps to true. Parallel execution
 
-http://github.com/janwilmake/promptmodules.websearch
-
-Websearch router, Task MCP router
+https://github.com/janwilmake/prompt_modules
 
 # Cloudflare Collab
 
