@@ -1,15 +1,8 @@
 <!-- Clear focus on getting MCP-UI post out there and making currently available features easier to use -->
 
-# Parallel Docs MCP
+# TODO: Task MCP
 
-Fetch from a flat version of context sourced at https://github.com/parallel-web/parallel-cookbook
-
-# TODO Task MCP
-
-- Add `core2x`
-- Fix response to include processor (for when ingest was used)
-- Merge staging to main and deploy. Confirm it works as intended still - https://github.com/parallel-web/task-mcp-impl/pull/1
-- Docs to explain how to use the MCP with MCP-UI clients
+Docs to explain how to use the MCP with MCP-UI clients
 
 # Examples
 
@@ -37,11 +30,8 @@ Dogfood More
 
 Submitted:
 
-- MCP - https://modelcontextprotocol.io/examples
-  - Edit: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/examples.mdx
-  - ❌ doesnt seem to be getting any PRs
 - MCP - https://github.com/modelcontextprotocol/servers
-  - ⏳ https://github.com/modelcontextprotocol/servers/pull/2829
+  - ✅ https://github.com/modelcontextprotocol/servers/pull/2829 ✅ Merged
 - Cursor - https://docs.cursor.com/en/tools/mcp
   - ⏳ https://github.com/cursor/mcp-servers/issues/48
 - https://lobehub.com/mcp (✅ submitted task+search)
@@ -70,6 +60,12 @@ Submitted:
 - https://cline.bot/mcp-marketplace
   - task mcp https://github.com/cline/mcp-marketplace/issues/509
   - search mcp https://github.com/cline/mcp-marketplace/issues/510
+
+Not done
+
+- MCP - https://modelcontextprotocol.io/examples
+  - Edit: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/examples.mdx
+  - ❌ doesnt seem to be getting any PRs
 
 Needs contact person:
 
@@ -103,3 +99,9 @@ TO DO:
 - Official MCP registry
   - follow: https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md
 - https://x.com/claudeai/status/1976332881409737124?s=46&t=73OLKnbYZgmY6PGvTUK_zg
+
+# Prio Functionality to push on Platform
+
+- Speed Platform (very slow initial load)
+
+- Ability to share MCP deep-research and task-groups/runs: https://parallel-web-systems.slack.com/archives/C06RPTEJP7U/p1760120452307109?thread_ts=1760095450.198189&cid=C06RPTEJP7U
