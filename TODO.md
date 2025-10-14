@@ -2,21 +2,30 @@
 
 # TODAY
 
-1. write programmatic-use docs
+✅ improve task mcp docs
 
-Explain what you can build with this (An authenticated agent that can perform tasks and analyze results), or an agent that can do generic research.
+✅ write programmatic-use docs
+
+✅ Explain what you can build with this (An authenticated agent that can perform tasks and analyze results), or an agent that can do generic research.
 
 - OpenAI https://platform.openai.com/docs/guides/tools-connectors-mcp?lang=javascript
 - Anthropic https://docs.claude.com/en/docs/agents-and-tools/mcp-connector
 - AI SDK https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools https://ai-sdk.dev/cookbook/node/mcp-tools https://vercel.com/blog/generate-static-ai-sdk-tools-from-mcp-servers-with-mcp-to-ai-sdk
 
-2. use new docs context, improve blogpost with that without obsessing over detail, ensure to keep separation of the goal - blog is for convincing that it's good.
+✅ Use new docs context, improve blogpost with that without obsessing over detail, ensure to keep separation of the goal - blog is for convincing that it's good.
 
 - one first enterprise-grade async MCPs
 - the most work done in a single tool call
 
-3. make video demo and, after docs are merged, contact listings approved that have impact when featured
-4. position MCP getting started as 'the easiest way to get started with parallel APIs' and communicate this clearly with team
+🟠 make video demo and maybe visuals like gif for blog
+
+After docs are merged:
+
+- contact listings approved that have impact when featured
+- reach out to partners to co-market mcp
+- keep dogfooding and collecting feedback
+
+Position MCP getting started as 'the easiest way to get started with parallel APIs' and communicate this clearly with team
 
 # Examples
 
