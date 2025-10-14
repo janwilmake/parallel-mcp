@@ -14,7 +14,7 @@ The Task MCP Server provides two core capabilities: deep research tasks that gen
 
 The Task MCP Server uses an async architecture that lets agents start research tasks and continue executing other work without blocking. This is critical for production agents handling complex workflows - start a deep research task on competitor analysis, move on to enriching a prospect list, then retrieve the research results when complete.
 
-Long-running deep research tasks that might take minutes no longer freeze your agent's execution. The result: agents can orchestrate multiple parallel research streams and maintain responsiveness while conducting thorough web intelligence gathering. This async capability makes it one of the first truly enterprise-grade MCP servers designed for production environments.
+Long-running deep research tasks that might take minutes no longer freeze your agent's execution. The result: agents can orchestrate multiple parallel research streams and maintain responsiveness while conducting thorough web intelligence gathering.
 
 ## Built for production AI agents
 
