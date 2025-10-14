@@ -1,8 +1,22 @@
 <!-- Clear focus on getting MCP-UI post out there and making currently available features easier to use -->
 
-# TODO: Task MCP
+# TODAY
 
-Docs to explain how to use the MCP with MCP-UI clients
+1. write programmatic-use docs
+
+Explain what you can build with this (An authenticated agent that can perform tasks and analyze results), or an agent that can do generic research.
+
+- OpenAI https://platform.openai.com/docs/guides/tools-connectors-mcp?lang=javascript
+- Anthropic https://docs.claude.com/en/docs/agents-and-tools/mcp-connector
+- AI SDK https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools https://ai-sdk.dev/cookbook/node/mcp-tools https://vercel.com/blog/generate-static-ai-sdk-tools-from-mcp-servers-with-mcp-to-ai-sdk
+
+2. use new docs context, improve blogpost with that without obsessing over detail, ensure to keep separation of the goal - blog is for convincing that it's good.
+
+- one first enterprise-grade async MCPs
+- the most work done in a single tool call
+
+3. make video demo and, after docs are merged, contact listings approved that have impact when featured
+4. position MCP getting started as 'the easiest way to get started with parallel APIs' and communicate this clearly with team
 
 # Examples
 
@@ -19,10 +33,11 @@ Dogfood More
 - Example of chaining tasks
 - Product matching / Price comparison
 - **Based People**: task chaining: how to more effectively prototype different strategies?!
+- thefacebook.university --> person analysis for everyone at your company, making a directory of people in your slack by finding stuff about them on the internet
 
 **Recruitment/headhunting**: Fill one Parallel role using my network (Blog Idea)
 
-1. Who do I know that could fill this role: {role info} —> X Interactions MCP
+1. Who do I know that could fill this role: {role info} —> Clonechat MCP
 2. Find 20 candidates, do background check on each using entity resolution and then a follow up research on verified highly confident sources
 3. Finally, make a verdict on the best 3 candidates to approach and why
 
@@ -105,3 +120,5 @@ TO DO:
 - Speed Platform (very slow initial load)
 
 - Ability to share MCP deep-research and task-groups/runs: https://parallel-web-systems.slack.com/archives/C06RPTEJP7U/p1760120452307109?thread_ts=1760095450.198189&cid=C06RPTEJP7U
+
+- CSV download
