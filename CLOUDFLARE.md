@@ -2,7 +2,7 @@
 
 Router that uses a regular model by default but uses websearch or Task MCP if a 1 token prompt jumps to true. Parallel execution
 
-https://github.com/janwilmake/prompt_modules
+https://github.com/janwilmake/speculative-dual-streaming
 
 # Cloudflare Collab
 

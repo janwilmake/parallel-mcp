@@ -17,15 +17,15 @@
 - one first enterprise-grade async MCPs
 - the most work done in a single tool call
 
-🟠 make video demo and maybe visuals like gif for blog
+🟠 Make video demo and maybe visuals like gif for blog
 
 After docs are merged:
 
-- contact listings approved that have impact when featured
-- reach out to partners to co-market mcp
+- ✅ contact listings approved that have impact when featured
 - keep dogfooding and collecting feedback
+- reach out to partners to co-market mcp
 
-Position MCP getting started as 'the easiest way to get started with parallel APIs' and communicate this clearly with team
+Position MCP getting started as 'the easiest way to get started with parallel APIs' and communicate this clearly with team.
 
 # Examples
 
@@ -120,6 +120,7 @@ No registries:
 
 TO DO:
 
+- https://github.com/nicolasmontone/ai-sdk-agents
 - Official MCP registry
   - follow: https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md
 - https://x.com/claudeai/status/1976332881409737124?s=46&t=73OLKnbYZgmY6PGvTUK_zg
@@ -127,7 +128,4 @@ TO DO:
 # Prio Functionality to push on Platform
 
 - Speed Platform (very slow initial load)
-
 - Ability to share MCP deep-research and task-groups/runs: https://parallel-web-systems.slack.com/archives/C06RPTEJP7U/p1760120452307109?thread_ts=1760095450.198189&cid=C06RPTEJP7U
-
-- CSV download
