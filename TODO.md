@@ -17,8 +17,6 @@
 - one first enterprise-grade async MCPs
 - the most work done in a single tool call
 
-🟠 Make video demo and maybe visuals like gif for blog
-
 After docs are merged:
 
 - ✅ contact listings approved that have impact when featured
